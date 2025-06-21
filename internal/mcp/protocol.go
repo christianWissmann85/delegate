@@ -84,11 +84,18 @@ func (p *Protocol) handleMessage(data []byte) error {
 		return p.handleToolsList(msg.ID)
 	case "tools/call":
 		return p.handleToolCall(msg.ID, msg.Params)
+	case "notifications/initialized":
+		// This is a notification, not a request - no response needed
+		p.logger.Info("Client initialization complete")
+		return nil
 	default:
-		_ = p.sendError(msg.ID, &Error{
-			Code:    MethodNotFound,
-			Message: fmt.Sprintf("Method not found: %s", msg.Method),
-		})
+		// Only send error response if this is a request (has an ID)
+		if msg.ID != nil {
+			_ = p.sendError(msg.ID, &Error{
+				Code:    MethodNotFound,
+				Message: fmt.Sprintf("Method not found: %s", msg.Method),
+			})
+		}
 		return fmt.Errorf("unknown method: %s", msg.Method)
 	}
 }
@@ -113,9 +120,7 @@ func (p *Protocol) handleInitialize(id interface{}, params json.RawMessage) erro
 	result := InitializeResult{
 		ProtocolVersion: "2024-11-05",
 		Capabilities: Capabilities{
-			Tools: &ToolsCapability{
-				ListChanged: false,
-			},
+			Tools: &ToolsCapability{},
 		},
 		ServerInfo: ServerInfo{
 			Name:    "delegate",

@@ -52,9 +52,7 @@ type Capabilities struct {
 }
 
 // ToolsCapability indicates tool support
-type ToolsCapability struct {
-	ListChanged bool `json:"listChanged,omitempty"`
-}
+type ToolsCapability struct {}
 
 // ServerInfo contains server information
 type ServerInfo struct {

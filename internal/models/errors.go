@@ -26,6 +26,7 @@ const (
 	ErrorTypeAuthError           = "auth_error"
 	ErrorTypeNotFound            = "not_found"
 	ErrorTypeExtractionFailed    = "extraction_failed"
+	ErrorTypeInternal            = "internal_error"
 )
 
 // NewDelegateError creates a new delegate error

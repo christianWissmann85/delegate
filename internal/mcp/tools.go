@@ -162,6 +162,10 @@ func (t *ReadTool) Schema() JSONSchema {
 						Type:        "number",
 						Description: "Limit response size in tokens",
 					},
+					"write_to": {
+						Type:        "string",
+						Description: "Write content to this file path instead of returning it",
+					},
 				},
 			},
 		},

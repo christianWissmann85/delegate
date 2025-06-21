@@ -2,8 +2,11 @@
   "mcpServers": {
     "delegate": {
       "type": "stdio",
-      "command": "/home/chris/repos/delegate/delegate",
-      "args": [],
+      "command": "go",
+      "args": [
+        "run",
+        "main.go"
+      ],
       "env": {}
     }
   }

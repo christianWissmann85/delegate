@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/christianwissmann85/delegate/internal/models"
@@ -66,6 +68,21 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 		content = h.truncateContent(content, req.Options.MaxTokens)
 	}
 
+	// If WriteTo is specified, write to file instead of returning content
+	if req.Options.WriteTo != "" {
+		if err := h.writeToFile(req.Options.WriteTo, content); err != nil {
+			return nil, models.NewDelegateError(
+				models.ErrorTypeInternal,
+				"",
+				fmt.Sprintf("failed to write to file: %v", err),
+			)
+		}
+		// Return success message instead of content
+		return &ReadResponse{
+			Content: fmt.Sprintf("Content written to %s", req.Options.WriteTo),
+		}, nil
+	}
+
 	return &ReadResponse{
 		Content: content,
 	}, nil
@@ -81,6 +98,7 @@ type ReadRequest struct {
 type ReadOptions struct {
 	Extract   string `json:"extract,omitempty"`   // "all", "code", "explanation"
 	MaxTokens int    `json:"max_tokens,omitempty"` // Limit response size
+	WriteTo   string `json:"write_to,omitempty"`  // Write content to file instead of returning
 }
 
 // ReadResponse represents the read tool response
@@ -129,4 +147,20 @@ func (h *ReadHandler) truncateContent(content string, maxTokens int) string {
 	}
 
 	return truncated
+}
+
+// writeToFile writes content to the specified file path
+func (h *ReadHandler) writeToFile(filePath string, content string) error {
+	// Ensure the directory exists
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Write the file
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
 }

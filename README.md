@@ -9,10 +9,18 @@ Delegate lets Claude Code save context tokens by delegating heavy tasks to other
 ## Installation
 
 ```bash
-claude mcp add delegate -s user -- npx -y @christianwissmann85/delegate
+# Clone the repository
+git clone https://github.com/christianwissmann85/delegate.git
+cd delegate
+
+# Build the project
+go build -o delegate main.go
+
+# Add to Claude Code
+claude mcp add delegate -s project -- go run main.go
 ```
 
-That's it. [Full installation guide →](docs/Delegate%20MCP%20Installation%20Guide%20v1.0.md)
+That's it. You're ready to save tokens!
 
 ## Key Use Cases
 
@@ -51,6 +59,7 @@ Use Delegate to review this 10k line codebase and identify security issues
 - ✅ **3 Simple Tools**: invoke, check, read
 - ✅ **4 Powerful Models**: Gemini 2.5 Flash/Pro (1M tokens!), Claude Sonnet/Opus 4
 - ✅ **Token Efficient**: Delegate document analysis, code generation, any heavy lifting
+- ✅ **write_to Magic**: Save outputs directly to disk - ZERO tokens consumed!
 - ✅ **Context Preservation**: Keep Claude Code's context clean for actual work
 - ✅ **No Complexity**: Read [NO_SCOPE_CREEP.md](docs/development/NO_SCOPE_CREEP.md)
 
@@ -66,7 +75,7 @@ Use Delegate to review this 10k line codebase and identify security issues
 
 ## Project Status
 
-🚧 **In Development** - Following the [Implementation Roadmap](docs/development/implementation-roadmap.md)
+✅ **Ready for Use** - All core features implemented and tested. The revolutionary `write_to` feature lets you save massive outputs directly to disk without consuming any tokens!
 
 ## Philosophy
 
@@ -74,6 +83,7 @@ This project has one sacred document: [NO_SCOPE_CREEP.md](docs/development/NO_SC
 
 ## Requirements
 
+- Go 1.21+ (for building from source)
 - Claude Code CLI
 - API key for at least one provider (Gemini or Claude)
 - That's it

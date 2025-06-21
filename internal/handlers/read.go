@@ -60,12 +60,17 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 		content = output.Response.Extracted.Explanation
 	}
 
+	// Track if content was truncated
+	truncated := false
+	originalLength := len(content)
+	
 	// Validate and apply token limit if specified
 	if req.Options.MaxTokens > 0 {
 		if err := ValidateMaxTokens(req.Options.MaxTokens); err != nil {
 			return nil, err
 		}
 		content = h.truncateContent(content, req.Options.MaxTokens)
+		truncated = len(content) < originalLength
 	}
 
 	// If WriteTo is specified, write to file instead of returning content
@@ -79,12 +84,23 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 		}
 		// Return success message instead of content
 		return &ReadResponse{
-			Content: fmt.Sprintf("Content written to %s", req.Options.WriteTo),
+			Content:     fmt.Sprintf("Content written to %s", req.Options.WriteTo),
+			Truncated:   truncated,
+			Tokens:      0, // No tokens returned when writing to file
+			Extraction:  req.Options.Extract,
+			FileWritten: true,
 		}, nil
 	}
 
+	// Calculate approximate token count for returned content
+	// Using same approximation as truncateContent: 1 token ≈ 4 characters
+	tokenCount := len(content) / 4
+
 	return &ReadResponse{
-		Content: content,
+		Content:    content,
+		Truncated:  truncated,
+		Tokens:     tokenCount,
+		Extraction: req.Options.Extract,
 	}, nil
 }
 
@@ -103,7 +119,12 @@ type ReadOptions struct {
 
 // ReadResponse represents the read tool response
 type ReadResponse struct {
-	Content string `json:"content"`
+	Content     string `json:"content"`
+	Truncated   bool   `json:"truncated"`
+	Tokens      int    `json:"tokens"`
+	Extraction  string `json:"extraction"`
+	Language    string `json:"language,omitempty"`
+	FileWritten bool   `json:"file_written,omitempty"`
 }
 
 // extractCodeContent formats all code blocks into a single string
@@ -133,8 +154,18 @@ func (h *ReadHandler) truncateContent(content string, maxTokens int) string {
 	// This is a rough estimate; actual tokenization varies by model
 	maxChars := maxTokens * 4
 	
+	// Ensure we have a minimum reasonable size to avoid panic
+	if maxChars < 10 {
+		maxChars = 10
+	}
+	
 	if len(content) <= maxChars {
 		return content
+	}
+
+	// Ensure we have enough space for ellipsis
+	if maxChars <= 3 {
+		return "..."
 	}
 
 	// Truncate and add ellipsis
@@ -149,16 +180,41 @@ func (h *ReadHandler) truncateContent(content string, maxTokens int) string {
 	return truncated
 }
 
-// writeToFile writes content to the specified file path
+// writeToFile writes content to the specified file path with security checks
 func (h *ReadHandler) writeToFile(filePath string, content string) error {
+	// Clean and validate the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(filePath)
+	
+	// Reject paths that try to go outside current directory
+	if strings.Contains(cleanPath, "..") {
+		return fmt.Errorf("invalid file path: path traversal detected")
+	}
+	
+	// Convert to absolute path for validation
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+	
+	// Get current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+	
+	// Ensure the path is within the current working directory
+	if !strings.HasPrefix(absPath, cwd) {
+		return fmt.Errorf("invalid file path: must be within current directory")
+	}
+	
 	// Ensure the directory exists
-	dir := filepath.Dir(filePath)
+	dir := filepath.Dir(absPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Write the file
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(absPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 

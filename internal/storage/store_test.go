@@ -27,8 +27,8 @@ func TestFileStore_GenerateID(t *testing.T) {
 	}
 	
 	// Verify format
-	if len(id1) != 19 { // out_YYYYMMDD_HHMMSS
-		t.Errorf("ID should be 19 characters, got %d: %s", len(id1), id1)
+	if len(id1) != 26 { // out_YYYYMMDD_HHMMSS_NNNNNN
+		t.Errorf("ID should be 26 characters, got %d: %s", len(id1), id1)
 	}
 }
 

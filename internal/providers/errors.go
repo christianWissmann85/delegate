@@ -29,9 +29,7 @@ func NormalizeError(provider string, err error, statusCode int) *models.Delegate
 		delegateErr.RetryAfter = 60
 		
 		// Try to extract retry_after from error message
-		if strings.Contains(errLower, "retry after") {
-			// Provider-specific parsing could go here
-		}
+		// TODO: Add provider-specific parsing for retry_after values when needed
 	}
 	
 	// Suggest alternatives for certain errors

@@ -71,7 +71,7 @@ func (s *FileStore) Save(output *models.Output) error {
 	finalPath := s.GetOutputPath(output.ID)
 	if err := os.Rename(tempPath, finalPath); err != nil {
 		// Clean up temp file on error
-		os.Remove(tempPath)
+		_ = os.Remove(tempPath)
 		return fmt.Errorf("move to final location: %w", err)
 	}
 
@@ -187,11 +187,13 @@ func (s *FileStore) SaveStream(reader io.Reader, prefix string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("create temp file: %w", err)
 	}
-	defer tempFile.Close()
+	defer func() {
+		_ = tempFile.Close()
+	}()
 
 	written, err := io.Copy(tempFile, reader)
 	if err != nil {
-		os.Remove(tempFile.Name())
+		_ = os.Remove(tempFile.Name())
 		return "", fmt.Errorf("copy stream: %w", err)
 	}
 

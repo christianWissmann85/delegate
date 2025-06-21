@@ -401,7 +401,7 @@ func BenchmarkCheckHandler(b *testing.B) {
 	
 	// Create test output
 	output := createTestOutput()
-	store.Save(output)
+	_ = store.Save(output)
 	
 	handler := handlers.NewCheckHandler(store)
 	ctx := context.Background()
@@ -425,7 +425,7 @@ func BenchmarkReadHandler(b *testing.B) {
 	// Create test output with content
 	output := createTestOutput()
 	output.Response.Raw = generateLargeContent(5000)
-	store.Save(output)
+	_ = store.Save(output)
 	
 	handler := handlers.NewReadHandler(store)
 	ctx := context.Background()

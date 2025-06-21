@@ -1,0 +1,10 @@
+{
+  "response": "Here's a simple Python function to calculate factorial:\n\n```python\ndef factorial(n):\n    \"\"\"Calculate the factorial of a non-negative integer.\"\"\"\n    if n < 0:\n        raise ValueError(\"Factorial is not defined for negative numbers\")\n    elif n == 0 or n == 1:\n        return 1\n    else:\n        return n * factorial(n - 1)\n```\n\nThis recursive implementation handles the base cases and raises an error for negative inputs.",
+  "code_blocks": [
+    {
+      "language": "python",
+      "content": "def factorial(n):\n    \"\"\"Calculate the factorial of a non-negative integer.\"\"\"\n    if n < 0:\n        raise ValueError(\"Factorial is not defined for negative numbers\")\n    elif n == 0 or n == 1:\n        return 1\n    else:\n        return n * factorial(n - 1)"
+    }
+  ],
+  "explanation": "This recursive implementation handles the base cases and raises an error for negative inputs."
+}

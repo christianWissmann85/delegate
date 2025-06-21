@@ -76,7 +76,9 @@ func readFileWithLimit(path string, maxSize int64) (string, int64, error) {
 			fmt.Sprintf("cannot open file: %s", path),
 		)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	// Get file info
 	info, err := file.Stat()

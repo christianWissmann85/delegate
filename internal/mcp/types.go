@@ -60,6 +60,6 @@ type ToolInfo struct {
 
 // ToolCallParams represents tool invocation parameters
 type ToolCallParams struct {
-	Name   string          `json:"name"`
-	Params json.RawMessage `json:"params"`
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
 }

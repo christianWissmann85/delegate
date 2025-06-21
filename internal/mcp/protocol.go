@@ -63,7 +63,7 @@ func (p *Protocol) HandleMessages(ctx context.Context) error {
 func (p *Protocol) handleMessage(data []byte) error {
 	var msg Message
 	if err := json.Unmarshal(data, &msg); err != nil {
-		p.sendError(nil, &Error{
+		_ = p.sendError(nil, &Error{
 			Code:    ParseError,
 			Message: "Parse error",
 			Data:    err.Error(),
@@ -85,7 +85,7 @@ func (p *Protocol) handleMessage(data []byte) error {
 	case "tools/call":
 		return p.handleToolCall(msg.ID, msg.Params)
 	default:
-		p.sendError(msg.ID, &Error{
+		_ = p.sendError(msg.ID, &Error{
 			Code:    MethodNotFound,
 			Message: fmt.Sprintf("Method not found: %s", msg.Method),
 		})
@@ -97,7 +97,7 @@ func (p *Protocol) handleMessage(data []byte) error {
 func (p *Protocol) handleInitialize(id interface{}, params json.RawMessage) error {
 	var initParams InitializeParams
 	if err := json.Unmarshal(params, &initParams); err != nil {
-		p.sendError(id, &Error{
+		_ = p.sendError(id, &Error{
 			Code:    InvalidParams,
 			Message: "Invalid params",
 			Data:    err.Error(),
@@ -148,7 +148,7 @@ func (p *Protocol) handleToolsList(id interface{}) error {
 func (p *Protocol) handleToolCall(id interface{}, params json.RawMessage) error {
 	var callParams ToolCallParams
 	if err := json.Unmarshal(params, &callParams); err != nil {
-		p.sendError(id, &Error{
+		_ = p.sendError(id, &Error{
 			Code:    InvalidParams,
 			Message: "Invalid params",
 			Data:    err.Error(),
@@ -158,7 +158,7 @@ func (p *Protocol) handleToolCall(id interface{}, params json.RawMessage) error 
 
 	tool, exists := p.server.tools[callParams.Name]
 	if !exists {
-		p.sendError(id, &Error{
+		_ = p.sendError(id, &Error{
 			Code:    InvalidParams,
 			Message: fmt.Sprintf("Tool not found: %s", callParams.Name),
 		})
@@ -166,11 +166,11 @@ func (p *Protocol) handleToolCall(id interface{}, params json.RawMessage) error 
 	}
 
 	// Call the tool handler
-	result, err := tool.Handler(context.Background(), callParams.Params)
+	result, err := tool.Handler(context.Background(), callParams.Arguments)
 	if err != nil {
 		// Convert DelegateError to JSON-RPC error with rich data
 		if delegateErr, ok := err.(*models.DelegateError); ok {
-			p.sendError(id, &Error{
+			_ = p.sendError(id, &Error{
 				Code:    p.mapErrorTypeToCode(delegateErr.Type),
 				Message: delegateErr.Message,
 				Data: map[string]interface{}{
@@ -182,7 +182,7 @@ func (p *Protocol) handleToolCall(id interface{}, params json.RawMessage) error 
 			})
 		} else {
 			// Fallback for non-DelegateError
-			p.sendError(id, &Error{
+			_ = p.sendError(id, &Error{
 				Code:    InternalError,
 				Message: err.Error(),
 			})
@@ -221,7 +221,7 @@ func (p *Protocol) sendError(id interface{}, err *Error) error {
 	data, errMarshal := json.Marshal(resp)
 	if errMarshal != nil {
 		// Last resort - send a basic error
-		fmt.Fprintf(p.writer, `{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"Internal error"}}`+"\n")
+		_, _ = fmt.Fprintf(p.writer, `{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"Internal error"}}`+"\n")
 		return errMarshal
 	}
 

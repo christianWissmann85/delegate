@@ -150,6 +150,7 @@ func TestMockProvider_ContextCancellation(t *testing.T) {
 	}
 	
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // Ensure cancel is always called
 	
 	ch, err := provider.GenerateStream(ctx, req)
 	if err != nil {

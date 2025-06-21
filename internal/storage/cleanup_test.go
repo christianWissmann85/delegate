@@ -34,7 +34,7 @@ func TestCleaner_Cleanup(t *testing.T) {
 	// Make first output old
 	oldPath := store.GetOutputPath(oldOutput.ID)
 	oldTime := time.Now().Add(-25 * time.Hour)
-	os.Chtimes(oldPath, oldTime, oldTime)
+	_ = os.Chtimes(oldPath, oldTime, oldTime)
 	
 	// Create cleaner with short intervals for testing
 	cleaner := NewCleaner(store, 100*time.Millisecond, 24*time.Hour)
@@ -73,7 +73,7 @@ func TestCleaner_Start(t *testing.T) {
 	// Make it old
 	oldPath := store.GetOutputPath(oldOutput.ID)
 	oldTime := time.Now().Add(-25 * time.Hour)
-	os.Chtimes(oldPath, oldTime, oldTime)
+	_ = os.Chtimes(oldPath, oldTime, oldTime)
 	
 	// Create cleaner with very short intervals for testing
 	cleaner := NewCleaner(store, 50*time.Millisecond, 24*time.Hour)

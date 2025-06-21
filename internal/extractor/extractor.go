@@ -210,7 +210,7 @@ func (e *Extractor) extractIndentedBlocks(content string, pattern Pattern, usedR
 		linesInBlock := countLines(code)
 		
 		// Try to detect language for indented blocks
-		lang := "plaintext"
+		var lang string
 		if e.languageHint != "" {
 			lang = NormalizeLanguage(e.languageHint)
 		} else {
@@ -232,7 +232,9 @@ func (e *Extractor) extractIndentedBlocks(content string, pattern Pattern, usedR
 func (e *Extractor) overlapsWithUsedRange(start, end int, usedRanges map[string]bool) bool {
 	for rangeKey := range usedRanges {
 		var usedStart, usedEnd int
-		fmt.Sscanf(rangeKey, "%d-%d", &usedStart, &usedEnd)
+		if _, err := fmt.Sscanf(rangeKey, "%d-%d", &usedStart, &usedEnd); err != nil {
+			continue
+		}
 		
 		// Check for overlap
 		if start < usedEnd && end > usedStart {

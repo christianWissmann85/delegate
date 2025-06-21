@@ -152,7 +152,7 @@ func TestFileStore_ListOlderThan(t *testing.T) {
 	// Modify time of first output to be old
 	oldPath := store.GetOutputPath(output1.ID)
 	oldTime := time.Now().Add(-25 * time.Hour)
-	os.Chtimes(oldPath, oldTime, oldTime)
+	_ = os.Chtimes(oldPath, oldTime, oldTime)
 	
 	// List old outputs
 	oldIDs, err := store.ListOlderThan(24 * time.Hour)

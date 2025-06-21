@@ -62,13 +62,13 @@
 - [x] Test full workflow: invoke → check → read
 
 #### **Day 14: Error Handling & Hardening**
-- [ ] Implement structured error responses (DelegateError type)
-- [ ] Map provider errors to normalized error types
-- [ ] Add retry_after and alternative_models to error responses
-- [ ] Input validation for all tool parameters
-- [ ] Path traversal prevention
-- [ ] Memory limits for file operations
-- [ ] Load testing with concurrent tool calls
+- [x] Implement structured error responses (DelegateError type)
+- [x] Map provider errors to normalized error types
+- [x] Add retry_after and alternative_models to error responses
+- [x] Input validation for all tool parameters
+- [x] Path traversal prevention
+- [x] Memory limits for file operations
+- [x] Load testing with concurrent tool calls
 
 **Week 2 Deliverable**: All 3 tools working reliably with both providers
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/christianwissmann85/delegate/internal/models"
 )
 
 // CheckHandler handles the check tool
@@ -21,14 +23,18 @@ func NewCheckHandler(storage Storage) *CheckHandler {
 // Handle processes a check request
 func (h *CheckHandler) Handle(ctx context.Context, req CheckRequest) (*CheckResponse, error) {
 	// Validate request
-	if req.OutputID == "" {
-		return nil, fmt.Errorf("output_id is required")
+	if err := ValidateOutputID(req.OutputID); err != nil {
+		return nil, err
 	}
 
 	// Get output from storage
 	output, err := h.storage.Get(req.OutputID)
 	if err != nil {
-		return nil, fmt.Errorf("get output: %w", err)
+		return nil, models.NewDelegateError(
+			models.ErrorTypeNotFound,
+			"",
+			fmt.Sprintf("output not found: %v", err),
+		)
 	}
 
 	// Build response with metadata

@@ -23,8 +23,8 @@ func NewReadHandler(storage Storage) *ReadHandler {
 // Handle processes a read request
 func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadResponse, error) {
 	// Validate request
-	if req.OutputID == "" {
-		return nil, fmt.Errorf("output_id is required")
+	if err := ValidateOutputID(req.OutputID); err != nil {
+		return nil, err
 	}
 
 	// Set default extract option
@@ -33,17 +33,18 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 	}
 
 	// Validate extract option
-	switch req.Options.Extract {
-	case "all", "code", "explanation":
-		// Valid options
-	default:
-		return nil, fmt.Errorf("invalid extract option: %s (must be 'all', 'code', or 'explanation')", req.Options.Extract)
+	if err := ValidateExtractOption(req.Options.Extract); err != nil {
+		return nil, err
 	}
 
 	// Get output from storage
 	output, err := h.storage.Get(req.OutputID)
 	if err != nil {
-		return nil, fmt.Errorf("get output: %w", err)
+		return nil, models.NewDelegateError(
+			models.ErrorTypeNotFound,
+			"",
+			fmt.Sprintf("output not found: %v", err),
+		)
 	}
 
 	// Extract requested content
@@ -57,8 +58,11 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 		content = output.Response.Extracted.Explanation
 	}
 
-	// Apply token limit if specified
+	// Validate and apply token limit if specified
 	if req.Options.MaxTokens > 0 {
+		if err := ValidateMaxTokens(req.Options.MaxTokens); err != nil {
+			return nil, err
+		}
 		content = h.truncateContent(content, req.Options.MaxTokens)
 	}
 

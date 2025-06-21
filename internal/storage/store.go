@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/christianwissmann85/delegate/internal/logger"
@@ -17,6 +18,7 @@ import (
 type FileStore struct {
 	baseDir string
 	logger  *logger.Logger
+	counter uint64 // For unique ID generation
 }
 
 // NewFileStore creates a new file store
@@ -39,9 +41,12 @@ func NewFileStore(baseDir string) (*FileStore, error) {
 	}, nil
 }
 
-// GenerateID creates a new output ID based on timestamp
+// GenerateID creates a new output ID based on timestamp with counter for uniqueness
 func (s *FileStore) GenerateID() string {
-	return fmt.Sprintf("out_%s", time.Now().UTC().Format("20060102_150405"))
+	// Use atomic counter to ensure uniqueness in concurrent operations
+	counter := atomic.AddUint64(&s.counter, 1)
+	now := time.Now().UTC()
+	return fmt.Sprintf("out_%s_%06d", now.Format("20060102_150405"), counter%1000000)
 }
 
 // Save persists an output to disk atomically

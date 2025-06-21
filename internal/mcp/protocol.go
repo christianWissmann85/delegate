@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/christianwissmann85/delegate/internal/logger"
+	"github.com/christianwissmann85/delegate/internal/models"
 )
 
 // Protocol handles JSON-RPC communication
@@ -167,10 +168,25 @@ func (p *Protocol) handleToolCall(id interface{}, params json.RawMessage) error 
 	// Call the tool handler
 	result, err := tool.Handler(context.Background(), callParams.Params)
 	if err != nil {
-		p.sendError(id, &Error{
-			Code:    InternalError,
-			Message: err.Error(),
-		})
+		// Convert DelegateError to JSON-RPC error with rich data
+		if delegateErr, ok := err.(*models.DelegateError); ok {
+			p.sendError(id, &Error{
+				Code:    p.mapErrorTypeToCode(delegateErr.Type),
+				Message: delegateErr.Message,
+				Data: map[string]interface{}{
+					"error":               delegateErr.Type,
+					"provider":            delegateErr.Provider,
+					"retry_after":         delegateErr.RetryAfter,
+					"alternative_models":  delegateErr.Alternatives,
+				},
+			})
+		} else {
+			// Fallback for non-DelegateError
+			p.sendError(id, &Error{
+				Code:    InternalError,
+				Message: err.Error(),
+			})
+		}
 		return err
 	}
 
@@ -211,4 +227,19 @@ func (p *Protocol) sendError(id interface{}, err *Error) error {
 
 	_, errWrite := fmt.Fprintf(p.writer, "%s\n", data)
 	return errWrite
+}
+
+// mapErrorTypeToCode maps DelegateError types to JSON-RPC error codes
+func (p *Protocol) mapErrorTypeToCode(errorType string) int {
+	switch errorType {
+	case models.ErrorTypeInvalidRequest:
+		return InvalidParams
+	case models.ErrorTypeAuthError:
+		return InvalidRequest
+	case models.ErrorTypeNotFound:
+		return InvalidParams
+	default:
+		// All provider errors map to InternalError
+		return InternalError
+	}
 }

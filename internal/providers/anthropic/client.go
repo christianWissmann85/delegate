@@ -51,10 +51,14 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 		
 		// Build prompt with files
 		promptText := req.Prompt
-		for _, filePath := range req.Files {
-			// For now, we'll just add file paths as text
-			// In a full implementation, we'd read and process the files
-			promptText += fmt.Sprintf("\n\nFile: %s\n<file content would go here>", filePath)
+		if len(req.Files) > 0 {
+			// Read files with memory limits
+			fileContents, err := handlers.ReadFilesWithLimit(req.Files)
+			if err != nil {
+				ch <- handlers.StreamChunk{Error: err}
+				return
+			}
+			promptText = handlers.BuildPromptWithFiles(promptText, fileContents)
 		}
 		
 		// Configure message parameters

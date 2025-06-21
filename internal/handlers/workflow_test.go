@@ -8,6 +8,7 @@ import (
 
 	"github.com/christianwissmann85/delegate/internal/extractor"
 	"github.com/christianwissmann85/delegate/internal/handlers"
+	"github.com/christianwissmann85/delegate/internal/models"
 	"github.com/christianwissmann85/delegate/internal/providers/mock"
 	"github.com/christianwissmann85/delegate/internal/storage"
 )
@@ -238,7 +239,7 @@ func TestReadHandler_Errors(t *testing.T) {
 
 	t.Run("invalid_extract_option", func(t *testing.T) {
 		req := handlers.ReadRequest{
-			OutputID: "test",
+			OutputID: "out_20240101_120000_000001",
 			Options: handlers.ReadOptions{
 				Extract: "invalid",
 			},
@@ -248,6 +249,33 @@ func TestReadHandler_Errors(t *testing.T) {
 			t.Errorf("Expected invalid extract option error, got: %v", err)
 		}
 	})
+}
+
+// createTestOutput creates a test output for testing
+func createTestOutput() *models.Output {
+	return &models.Output{
+		ID:        "test_output_001",
+		Model:     "mock-test",
+		Prompt:    "Test prompt",
+		CreatedAt: time.Now(),
+		Response: models.Response{
+			Raw: "Here's a function:\n\n```python\ndef test():\n    pass\n```\n\nThis is a test function.",
+			Extracted: models.Extracted{
+				Code: []models.ExtractedCode{
+					{
+						Language: "python",
+						Content:  "def test():\n    pass",
+					},
+				},
+				Explanation: "This is a test function.",
+			},
+		},
+		Metadata: models.Metadata{
+			TotalBytes:         100,
+			EstimatedTokens:    25,
+			ProcessingTimeMs:   50,
+		},
+	}
 }
 
 func TestTokenEstimation(t *testing.T) {

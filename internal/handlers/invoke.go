@@ -66,7 +66,15 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 	// Get provider for the model
 	provider, err := h.providers.GetProvider(req.Model)
 	if err != nil {
-		return nil, fmt.Errorf("get provider: %w", err)
+		// Provider factory should return DelegateError, but wrap if not
+		if delegateErr, ok := err.(*models.DelegateError); ok {
+			return nil, delegateErr
+		}
+		return nil, models.NewDelegateError(
+			models.ErrorTypeProviderUnavailable,
+			req.Model,
+			fmt.Sprintf("get provider: %v", err),
+		)
 	}
 
 	// Create generate request
@@ -81,14 +89,30 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 	// Stream response from provider
 	stream, err := provider.GenerateStream(ctx, genReq)
 	if err != nil {
-		return nil, fmt.Errorf("start stream: %w", err)
+		// Provider should return DelegateError
+		if delegateErr, ok := err.(*models.DelegateError); ok {
+			return nil, delegateErr
+		}
+		return nil, models.NewDelegateError(
+			models.ErrorTypeProviderError,
+			req.Model,
+			fmt.Sprintf("start stream: %v", err),
+		)
 	}
 
 	// Collect response
 	var fullResponse string
 	for chunk := range stream {
 		if chunk.Error != nil {
-			return nil, fmt.Errorf("stream error: %w", chunk.Error)
+			// Stream errors should be DelegateError
+			if delegateErr, ok := chunk.Error.(*models.DelegateError); ok {
+				return nil, delegateErr
+			}
+			return nil, models.NewDelegateError(
+				models.ErrorTypeProviderError,
+				req.Model,
+				fmt.Sprintf("stream error: %v", chunk.Error),
+			)
 		}
 		fullResponse += chunk.Content
 	}
@@ -155,7 +179,11 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 
 	// Save to storage
 	if err := h.storage.Save(output); err != nil {
-		return nil, fmt.Errorf("save output: %w", err)
+		return nil, models.NewDelegateError(
+			models.ErrorTypeProviderError,
+			"",
+			fmt.Sprintf("save output: %v", err),
+		)
 	}
 
 	return &InvokeResponse{
@@ -165,18 +193,33 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 
 // validateRequest checks if the request is valid
 func (h *InvokeHandler) validateRequest(req InvokeRequest) error {
-	if req.Model == "" {
-		return fmt.Errorf("model is required")
+	// Validate model
+	if err := ValidateModel(req.Model); err != nil {
+		return err
 	}
-	if req.Prompt == "" {
-		return fmt.Errorf("prompt is required")
+
+	// Validate prompt
+	if err := ValidatePrompt(req.Prompt); err != nil {
+		return err
 	}
-	if req.MaxTokens < 0 {
-		return fmt.Errorf("max_tokens cannot be negative")
+
+	// Validate file paths if provided
+	if len(req.Files) > 0 {
+		if err := ValidateFilePaths(req.Files); err != nil {
+			return err
+		}
 	}
-	if req.Timeout < 0 {
-		return fmt.Errorf("timeout cannot be negative")
+
+	// Validate max tokens
+	if err := ValidateMaxTokens(req.MaxTokens); err != nil {
+		return err
 	}
+
+	// Validate timeout
+	if err := ValidateTimeout(req.Timeout); err != nil {
+		return err
+	}
+
 	return nil
 }
 

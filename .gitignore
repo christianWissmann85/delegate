@@ -1,0 +1,35 @@
+# Binaries
+delegate
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+*.test
+*.out
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Delegate runtime
+.delegate/
+*.log
+
+# Environment
+.env
+.env.local
+
+# Test coverage
+*.cover
+coverage.html
+coverage.out

@@ -6,7 +6,7 @@ This document defines the exact descriptions that should be used when registerin
 
 ### delegate_invoke
 ```
-description: "Delegate heavy tasks (code generation, document analysis, large file processing) to other LLMs to save Claude Code's context tokens. Use this when: generating large amounts of code, analyzing multiple documents, processing entire codebases, or any task that would consume significant context. Supports Gemini models (1M token context) and Claude models. Returns an output_id for async retrieval."
+description: "Delegate SINGLE FILE generation (one source file OR one doc) to save tokens. Examples: 'Create user.go model', 'Generate README.md'. For multiple files, call repeatedly. Best with Gemini models (1M context). Returns output_id for retrieval."
 ```
 
 ### delegate_check

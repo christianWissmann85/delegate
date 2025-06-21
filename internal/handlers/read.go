@@ -82,9 +82,25 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 				fmt.Sprintf("failed to write to file: %v", err),
 			)
 		}
-		// Return success message instead of content
+		
+		// Calculate file size and tokens saved
+		fileSize := len(content)
+		fileSizeKB := float64(fileSize) / 1024.0
+		tokensSaved := fileSize / 4 // Approximate: 1 token ≈ 4 characters
+		
+		// Format file size nicely
+		var sizeStr string
+		if fileSizeKB < 1 {
+			sizeStr = fmt.Sprintf("%d bytes", fileSize)
+		} else if fileSizeKB < 1024 {
+			sizeStr = fmt.Sprintf("%.1f KB", fileSizeKB)
+		} else {
+			sizeStr = fmt.Sprintf("%.1f MB", fileSizeKB/1024.0)
+		}
+		
+		// Return success message with size and tokens saved
 		return &ReadResponse{
-			Content:     fmt.Sprintf("Content written to %s", req.Options.WriteTo),
+			Content:     fmt.Sprintf("Content written to %s (%s, ~%d tokens saved)", req.Options.WriteTo, sizeStr, tokensSaved),
 			Truncated:   truncated,
 			Tokens:      0, // No tokens returned when writing to file
 			Extraction:  req.Options.Extract,

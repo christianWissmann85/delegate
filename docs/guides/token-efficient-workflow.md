@@ -22,9 +22,10 @@ With delegate, the same task uses:
 
 ## Core Workflow
 
-### 1. Initial Generation
+### 1. Initial Generation (Single File at a Time)
 
 ```yaml
+# IMPORTANT: Generate ONE file per invoke call
 delegate_invoke:
   model: gemini-2.5-flash    # Fast & cost-effective
   files:                     # Attach context files
@@ -32,11 +33,11 @@ delegate_invoke:
     - "src/interfaces.go"    
     - "examples/similar.go"  
   prompt: |
-    Generate a complete user service that:
-    - Implements all interfaces in interfaces.go
+    Create models/user.go that:
+    - Implements UserInterface from interfaces.go
     - Follows the patterns in similar.go
-    - Meets all requirements in api-spec.md
-  timeout: 120               # Allow time for complex generation
+    - Uses GORM for database mapping
+  timeout: 90                # 60-90s for code, 90-120s for docs
 ```
 
 ### 2. Check & Write Pattern
@@ -51,6 +52,7 @@ delegate_read(output_id, max_tokens: 200, extract: "code")
 
 # 3. Write directly to project (ZERO tokens!)
 delegate_read(output_id, write_to: "src/services/user_service.go")
+# → "Content written to src/services/user_service.go (15.2 KB, ~3800 tokens saved)"
 ```
 
 ### 3. Compile-Fix Loop

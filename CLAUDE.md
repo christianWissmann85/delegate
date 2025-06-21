@@ -146,13 +146,19 @@ Key documents:
 ## Production Usage Examples
 
 ```bash
-# Generate massive codebase without consuming tokens
-delegate_invoke(model: "gemini-2.5-flash", prompt: "Create complete REST API")
-delegate_check(output_id)  # See it's 50KB
-delegate_read(output_id, options: {write_to: "api/server.go"})  # ZERO TOKENS!
+# Iterative single-file generation workflow (RECOMMENDED)
+delegate_invoke(model: "gemini-2.5-flash", prompt: "Create user.go model with GORM tags")
+delegate_check(output_id)  # Check size first
+delegate_read(output_id, options: {write_to: "models/user.go"})  # Output: "Content written to models/user.go (3.2 KB, ~800 tokens saved)"
 
 # Fix compilation errors iteratively
-go build api/server.go 2> errors.txt
-delegate_invoke(model: "gemini-2.5-flash", files: ["api/server.go", "errors.txt"], prompt: "Fix these errors")
-delegate_read(output_id, options: {write_to: "api/server.go"})  # Still ZERO TOKENS!
+go build models/user.go 2> errors.txt
+delegate_invoke(model: "gemini-2.5-flash", files: ["models/user.go", "errors.txt"], prompt: "Fix these compilation errors")
+delegate_read(output_id, options: {write_to: "models/user.go"})  # Output: "Content written to models/user.go (3.4 KB, ~850 tokens saved)"
+
+# Build complex projects file by file
+delegate_invoke(model: "gemini-2.5-flash", prompt: "Create README.md for BlogAPI project")
+delegate_read(output_id, options: {write_to: "README.md"})
+delegate_invoke(model: "gemini-2.5-flash", prompt: "Create auth middleware", files: ["README.md", "models/user.go"])
+delegate_read(output_id, options: {write_to: "middleware/auth.go"})
 ```

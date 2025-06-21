@@ -42,7 +42,7 @@ func (t *InvokeTool) Name() string {
 }
 
 func (t *InvokeTool) Description() string {
-	return "Delegate heavy tasks (code generation, document analysis, large file processing) to other LLMs to save Claude Code's context tokens. Use this when: generating large amounts of code, analyzing multiple documents, processing entire codebases, or any task that would consume significant context. Supports Gemini models (1M token context) and Claude models. Returns an output_id for async retrieval."
+	return "Delegate SINGLE FILE generation (one source file OR one doc) to save tokens. Examples: 'Create user.go model', 'Generate README.md'. For multiple files, call repeatedly. Best with Gemini models (1M context). Returns output_id for retrieval."
 }
 
 func (t *InvokeTool) Schema() JSONSchema {
@@ -56,11 +56,11 @@ func (t *InvokeTool) Schema() JSONSchema {
 			},
 			"prompt": {
 				Type:        "string",
-				Description: "Natural language description of the task.",
+				Description: "Task for ONE file. Good: 'Create user model with GORM tags'. Bad: 'Create entire REST API' (too many files).",
 			},
 			"files": {
 				Type:        "array",
-				Description: "File paths to include as context.",
+				Description: "Absolute file paths to include as context (e.g., previously generated files for consistency).",
 				Items: &Property{
 					Type: "string",
 				},
@@ -71,7 +71,7 @@ func (t *InvokeTool) Schema() JSONSchema {
 			},
 			"code_only": {
 				Type:        "boolean",
-				Description: "Return only code without explanations (default: false)",
+				Description: "Extract only code blocks from response, no explanations (default: false). Tip: Also ask for 'only code' in prompt.",
 			},
 			"language_hint": {
 				Type:        "string",
@@ -79,7 +79,7 @@ func (t *InvokeTool) Schema() JSONSchema {
 			},
 			"timeout": {
 				Type:        "number",
-				Description: "Request-specific timeout in seconds (overrides DELEGATE_TIMEOUT_SECONDS)",
+				Description: "Timeout in seconds (default: 60, max: 600). Suggested: 60-90 for code, 90-120 for large docs.",
 			},
 		},
 		Required: []string{"model", "prompt"},

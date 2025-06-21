@@ -14,25 +14,25 @@
 - [x] Add structured logging to stderr (JSON format)
 
 #### **Day 3-4: Storage Layer**
-- [ ] Implement `Storage` interface for file operations
-- [ ] Output ID generation (timestamp-based: `out_YYYYMMDD_HHMMSS`)
-- [ ] Atomic file writing to prevent corruption
-- [ ] 24-hour cleanup goroutine for old outputs
-- [ ] Unit tests for all storage operations
+- [x] Implement `Storage` interface for file operations
+- [x] Output ID generation (timestamp-based: `out_YYYYMMDD_HHMMSS`)
+- [x] Atomic file writing to prevent corruption
+- [x] 24-hour cleanup goroutine for old outputs
+- [x] Unit tests for all storage operations
 
 #### **Day 5-6: First Provider Integration (Gemini)**
-- [ ] Define `Provider` interface with `GenerateStream` method
-- [ ] Implement Gemini provider using official Google SDK
-- [ ] Add streaming response handling (write to temp file during stream)
-- [ ] Implement timeout handling (60s default, configurable per request)
-- [ ] Create mock provider for testing
+- [x] Define `Provider` interface with `GenerateStream` method
+- [x] Implement Gemini provider using official Google SDK
+- [x] Add streaming response handling (write to temp file during stream)
+- [x] Implement timeout handling (60s default, configurable per request)
+- [x] Create mock provider for testing
 
 #### **Day 7: Wire First Tool (invoke)**
-- [ ] Implement `invoke` tool handler
-- [ ] Connect to MCP server tool registry
-- [ ] Basic code extraction using regex
-- [ ] Manual test with Claude Code: invoke → file created
-- [ ] Verify streaming prevents timeouts on long generations
+- [x] Implement `invoke` tool handler
+- [x] Connect to MCP server tool registry
+- [x] Basic code extraction using regex
+- [x] Manual test with Claude Code: invoke → file created
+- [x] Verify streaming prevents timeouts on long generations
 
 **Week 1 Deliverable**: Can invoke Gemini from Claude Code and save outputs
 

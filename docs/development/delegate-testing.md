@@ -87,33 +87,67 @@ We use a simplified testing pyramid that emphasizes the most valuable tests for 
 
 ## **4. Test File Structure**
 
-The complete test file structure for Delegate v1.0:
+Following Go conventions, test files are placed alongside the code they test with a `_test.go` suffix:
 
 ```
 delegate/
-├── test/
-│   └── fixtures/
-│       ├── mock_llm_response_code.json     # Mock LLM response with code
-│       ├── mock_llm_response_mixed.json    # Mock response with code + explanation
-│       └── mock_stream_chunks.json         # Mock streaming response chunks
+├── testdata/                               # Test fixtures (Go convention for test data)
+│   ├── mock_llm_response_code.json        # Mock LLM response with code
+│   ├── mock_llm_response_mixed.json       # Mock response with code + explanation
+│   └── mock_stream_chunks.json            # Mock streaming response chunks
 │
 ├── internal/
 │   ├── config/
-│   │   └── config_test.go                  # Unit: Environment variable loading
+│   │   ├── config.go
+│   │   ├── config_test.go                 # Unit: Environment variable loading
+│   │   └── validate_test.go                # Unit: Config validation
 │   ├── extractor/
-│   │   └── extractor_test.go               # Unit: Code/explanation extraction
+│   │   ├── extractor.go
+│   │   ├── extractor_test.go              # Unit: Code/explanation extraction
+│   │   └── patterns_test.go                # Unit: Regex patterns
 │   ├── handlers/
-│   │   └── handlers_test.go                # Integration: Tool handlers with mocks
+│   │   ├── invoke.go
+│   │   ├── invoke_test.go                 # Integration: Invoke handler
+│   │   ├── check_test.go                  # Integration: Check handler
+│   │   └── read_test.go                   # Integration: Read handler
 │   ├── providers/
-│   │   ├── mock_provider.go                # Mock LLM provider for testing
-│   │   └── providers_test.go               # Integration: Provider implementations
+│   │   ├── mock/                          # Mock provider package
+│   │   │   ├── provider.go                # Mock LLM provider implementation
+│   │   │   └── provider_test.go           # Unit: Mock provider tests
+│   │   ├── google/
+│   │   │   ├── client.go
+│   │   │   └── client_test.go             # Integration: Gemini provider
+│   │   ├── anthropic/
+│   │   │   ├── client.go
+│   │   │   └── client_test.go             # Integration: Claude provider
+│   │   └── factory_test.go                # Unit: Provider factory
 │   ├── mcp/
-│   │   └── server_test.go                  # Integration: MCP protocol handling
-│   └── storage/
-│       └── storage_test.go                 # Integration: File system operations
+│   │   ├── server.go
+│   │   ├── server_test.go                 # Integration: MCP server
+│   │   ├── protocol_test.go               # Unit: Protocol handling
+│   │   └── tools_test.go                  # Unit: Tool definitions
+│   ├── storage/
+│   │   ├── store.go
+│   │   ├── store_test.go                  # Integration: File operations
+│   │   ├── cleanup.go
+│   │   └── cleanup_test.go                # Integration: Cleanup routine
+│   └── logger/
+│       ├── logger.go
+│       └── logger_test.go                 # Unit: Logging functionality
 │
-└── e2e_test.go                             # E2E: Full MCP workflow (//go:build e2e)
+├── cmd/
+│   └── delegate/
+│       └── main_test.go                   # Integration: CLI startup
+│
+└── e2e/
+    └── golden_path_test.go                # E2E: Full MCP workflow (//go:build e2e)
 ```
+
+**Key Points:**
+- Test files use `_test.go` suffix and live next to the code they test
+- `testdata/` directory contains test fixtures (Go convention)
+- Mock provider is properly placed in `internal/providers/mock/`
+- E2E tests are in a separate `e2e/` package with build tags
 
 ## **5. Key Test Scenarios**
 

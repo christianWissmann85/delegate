@@ -32,7 +32,7 @@ func Load() (*Config, error) {
 
 		// API keys (no defaults)
 		AnthropicKey: os.Getenv("ANTHROPIC_API_KEY"),
-		GoogleKey:    os.Getenv("GOOGLE_API_KEY"),
+		GoogleKey:    getFirstEnv("GOOGLE_API_KEY", "GEMINI_API_KEY"),
 	}
 
 	// Validate configuration
@@ -59,6 +59,16 @@ func getEnvInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// getFirstEnv returns the first non-empty environment variable
+func getFirstEnv(keys ...string) string {
+	for _, key := range keys {
+		if value := os.Getenv(key); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // HasProvider checks if at least one provider is configured

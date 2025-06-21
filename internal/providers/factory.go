@@ -2,11 +2,13 @@ package providers
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/christianwissmann85/delegate/internal/config"
 	"github.com/christianwissmann85/delegate/internal/handlers"
 	"github.com/christianwissmann85/delegate/internal/providers/anthropic"
 	"github.com/christianwissmann85/delegate/internal/providers/google"
+	"github.com/christianwissmann85/delegate/internal/providers/mock"
 )
 
 // Factory creates providers based on model
@@ -23,6 +25,11 @@ func NewFactory(cfg *config.Config) *Factory {
 
 // GetProvider returns a provider for the given model
 func (f *Factory) GetProvider(model string) (handlers.Provider, error) {
+	// Support mock providers for testing
+	if strings.HasPrefix(model, "mock-") {
+		return mock.NewProvider(model), nil
+	}
+	
 	switch model {
 	case "gemini-2.5-flash", "gemini-2.5-pro":
 		return google.NewProvider(f.config.GoogleKey, model), nil

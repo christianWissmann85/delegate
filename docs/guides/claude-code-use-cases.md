@@ -121,21 +121,51 @@ Use Delegate to create environment-specific config files from this base template
 Use Delegate to generate database migration scripts from these schema changes
 ```
 
+## 🔥 The Token-Free Workflow
+
+### Generate Without Reading
+```
+Use Delegate to create src/auth/jwt.go implementing JWT authentication with refresh tokens
+Then write it directly to disk without reading
+```
+
+### Iterative Development
+```
+Use Delegate to create models/user.py with SQLAlchemy
+Write to disk
+Use Delegate to create routes/auth.py using the user model
+Write to disk
+Use Delegate to create tests/test_auth.py for the auth routes
+Write to disk
+```
+
+### The Compile-Fix Loop
+```
+Use Delegate to fix the TypeScript compilation errors in src/app.ts
+Write the fixed version back to src/app.ts
+```
+
 ## Best Practices
 
-1. **Always specify the model based on task size**
+1. **Generate ONE FILE at a time**
+   - More reliable than multi-file generation
+   - Allows iterative refinement
+   - Prevents timeouts
+
+2. **Use write_to for everything**
+   - Saves thousands of tokens per file
+   - Automatically handles code formatting
+   - Shows exactly how many tokens saved
+
+3. **Always specify the model based on task size**
    - Quick tasks: gemini-2.5-flash
    - Large documents: gemini-2.5-pro (1M context!)
    - Complex logic: claude-opus-4
 
-2. **Use file context liberally**
+4. **Use file context liberally**
    - Delegate handles large file inputs well
    - More context = better results
 
-3. **Check before reading**
+5. **Check before reading (if you must read)**
    - Always use check() to see output size
-   - Use extract options to get only what you need
-
-4. **Batch related tasks**
-   - "Generate models, controllers, and tests for this feature"
-   - More efficient than separate invocations
+   - But prefer write_to over reading!

@@ -16,21 +16,36 @@ delegate_read(params)    // Read the output (or parts of it)
 
 ## Core Workflow Pattern
 
+### The NEW Token-Free Workflow (Recommended!)
+
 ```javascript
-// 1. Generate code without using your tokens
+// 1. Generate ONE FILE at a time (not entire projects!)
 const output = await delegate_invoke({
     model: "gemini-2.5-flash",
-    prompt: "Create a complete Express.js REST API for a todo app",
+    prompt: "Create models/user.go with GORM tags for user management",
     files: ["requirements.md", "database_schema.sql"]
 });
 
-// 2. Always check size before reading!
+// 2. Check size (optional but recommended)
 const info = await delegate_check({
     output_id: output.id
 });
-console.log(`Output is ${info.size_kb}KB (≈${info.estimated_tokens} tokens)`);
+console.log(`Generated ${info.size_kb}KB`);
 
-// 3. Read strategically
+// 3. Write directly to file - ZERO TOKENS!
+const result = await delegate_read({
+    output_id: output.id,
+    options: { 
+        write_to: "models/user.go"  // Magic happens here!
+    }
+});
+// Output: "Content written to models/user.go (4.5 KB, ~1125 tokens saved)"
+```
+
+### Traditional Reading Workflow (When You Need to Review)
+
+```javascript
+// Only use this when you need to see the content
 if (info.estimated_tokens < 1000) {
     // Small enough - read everything
     const result = await delegate_read({
@@ -38,10 +53,10 @@ if (info.estimated_tokens < 1000) {
         options: { extract: "all" }
     });
 } else {
-    // Too big - just get the code
+    // Too big - just peek at the code
     const result = await delegate_read({
         output_id: output.id,
-        options: { extract: "code", max_tokens: 2000 }
+        options: { extract: "code", max_tokens: 500 }
     });
 }
 ```
@@ -70,30 +85,38 @@ if (info.estimated_tokens < 1000) {
 
 ## Common Patterns
 
-### Pattern 1: Large Feature Implementation
+### Pattern 1: Iterative Feature Implementation (Single Files!)
 ```javascript
-// User wants a complete feature
+// ❌ OLD WAY - Too ambitious, might fail or timeout
 const output = await delegate_invoke({
+    prompt: "Create a complete user authentication system with everything"
+});
+
+// ✅ NEW WAY - File by file, iteratively
+// Step 1: Models
+const models = await delegate_invoke({
     model: "gemini-2.5-flash",
-    prompt: `Create a complete user authentication system with:
-    - JWT tokens
-    - Password reset via email
-    - Role-based access control
-    - Rate limiting
-    Include all models, routes, middleware, and tests.`,
-    files: ["tech_stack.md", "existing_auth_code.js"]
+    prompt: "Create models/user.js with Mongoose schema for user authentication",
+    files: ["requirements.md"]
+});
+await delegate_read({ 
+    output_id: models.id, 
+    options: { write_to: "models/user.js" }
 });
 
-// Check what we got
-const info = await delegate_check({ output_id: output.id });
-// Likely 10-20KB of code
-
-// Read in chunks
-const models = await delegate_read({
-    output_id: output.id,
-    options: { extract: "code", language: "javascript", max_tokens: 1000 }
+// Step 2: Auth middleware (with context from previous file)
+const middleware = await delegate_invoke({
+    model: "gemini-2.5-flash",
+    prompt: "Create middleware/auth.js for JWT authentication",
+    files: ["models/user.js", "requirements.md"]
 });
-// Review, then get more...
+await delegate_read({ 
+    output_id: middleware.id, 
+    options: { write_to: "middleware/auth.js" }
+});
+// Output: "Content written to middleware/auth.js (3.2 KB, ~800 tokens saved)"
+
+// Continue for routes, tests, etc...
 ```
 
 ### Pattern 2: Code Analysis/Refactoring
@@ -112,26 +135,40 @@ const analysis = await delegate_read({
 });
 ```
 
-### Pattern 3: Iterative Development
+### Pattern 3: The Compile-Fix Loop (Revolutionary!)
 ```javascript
-// First pass - basic structure
-const v1 = await delegate_invoke({
+// This is where Delegate shines - fixing errors without consuming tokens!
+
+// Generate initial code
+const api = await delegate_invoke({
     model: "gemini-2.5-flash",
-    prompt: "Create the basic structure for a GraphQL API server"
+    prompt: "Create server.go - a REST API with user CRUD operations using Gin"
 });
 
-// Check and read
-const structure = await delegate_read({ 
-    output_id: v1.id, 
-    options: { extract: "code" }
+// Write to file - ZERO tokens
+await delegate_read({ 
+    output_id: api.id, 
+    options: { write_to: "server.go" }
 });
 
-// Second pass - add specific features
-const v2 = await delegate_invoke({
-    model: "gemini-2.5-pro",  // Upgrade model for complex logic
-    prompt: "Add user authentication to this GraphQL server",
-    files: ["generated_structure.js"]  // Feed back the previous output
+// Try to compile
+// $ go build server.go 2> errors.txt
+
+// Fix compilation errors - still ZERO tokens!
+const fixed = await delegate_invoke({
+    model: "gemini-2.5-flash",
+    prompt: "Fix the compilation errors in server.go",
+    files: ["server.go", "errors.txt"]  // Delegate reads the files!
 });
+
+// Overwrite with fixed version - STILL ZERO tokens
+await delegate_read({ 
+    output_id: fixed.id, 
+    options: { write_to: "server.go" }
+});
+// Output: "Content written to server.go (12.3 KB, ~3075 tokens saved)"
+
+// Your context window remains untouched! 🎉
 ```
 
 ### Pattern 4: Document Analysis (Your Context Saver!)
@@ -266,11 +303,34 @@ try {
 
 ## What NOT to Do
 
+### ❌ Don't Try to Generate Entire Projects at Once
+```javascript
+// BAD - Too ambitious, will timeout or produce mixed results
+await delegate_invoke({
+    prompt: "Create a complete e-commerce platform with all files"
+});
+
+// GOOD - Single file, focused
+await delegate_invoke({
+    prompt: "Create models/product.js with Mongoose schema for products"
+});
+```
+
+### ❌ Don't Read Content When You Can Write to File
+```javascript
+// BAD - Wastes thousands of tokens
+const code = await delegate_read({ output_id: output.id });
+// Now you need to manually save it
+
+// GOOD - Zero tokens, automatic file creation
+await delegate_read({ 
+    output_id: output.id,
+    options: { write_to: "src/newfile.js" }
+});
+```
+
 ### ❌ Don't Chain Too Many Calls
 Each invoke is 2-30 seconds. Users get impatient after 3-4 calls.
-
-### ❌ Don't Read Without Checking
-You might consume your entire context on one file.
 
 ### ❌ Don't Ignore File Attachments
 LLMs perform much better with context.
@@ -323,6 +383,51 @@ const output = await delegate_invoke({
     model: "claude-opus-4-20250514",
     prompt: "Generate a complete microservices architecture...",
     timeout: 120  // 2 minutes instead of default 60s
+});
+```
+
+## 🚀 The write_to Feature (Game Changer!)
+
+This is THE feature that makes Delegate revolutionary. Save massive files directly to disk without consuming any tokens!
+
+### Basic Usage
+```javascript
+// Traditional way - consumes tokens
+const content = await delegate_read({ output_id: "out_123" });
+// You just consumed 5000 tokens to read this content!
+
+// New way - ZERO tokens!
+await delegate_read({ 
+    output_id: "out_123",
+    options: { write_to: "src/api/server.go" }
+});
+// Output: "Content written to src/api/server.go (20.5 KB, ~5125 tokens saved)"
+```
+
+### Smart File Type Detection
+```javascript
+// Source files - removes markdown formatting automatically
+await delegate_read({ 
+    output_id: output.id,
+    options: { write_to: "main.py" }  // Clean Python code, no ```python
+});
+
+// Documentation - preserves markdown formatting
+await delegate_read({ 
+    output_id: output.id,
+    options: { write_to: "README.md" }  // Keeps code fences for display
+});
+```
+
+### Combine with Extract Options
+```javascript
+// Write only the code portions to file
+await delegate_read({ 
+    output_id: output.id,
+    options: { 
+        write_to: "implementation.js",
+        extract: "code"  // Only code blocks, no explanations
+    }
 });
 ```
 
@@ -454,7 +559,9 @@ Delegate is YOUR tool. It's designed to:
 - Be boringly reliable (no fancy features to break)
 - Get out of your way
 
-When in doubt: `invoke` → `check` → `read`. That's it!
+The new workflow: `invoke` (one file) → `write_to` (zero tokens!) → repeat
+
+When in doubt: Generate single files and use `write_to`. That's it!
 
 ## Quick Reference
 
@@ -465,4 +572,17 @@ When in doubt: `invoke` → `check` → `read`. That's it!
 | Following specs | `claude-sonnet-4-20250514` | Precise adherence |
 | Critical code | `claude-opus-4-20250514` | Highest quality |
 
-**The Golden Rule**: Always `check` before you `read`!
+## The Golden Rules
+
+1. **Generate ONE file at a time** (not entire projects)
+2. **Use `write_to` for everything** (save thousands of tokens)
+3. **Build iteratively** (pass previous files as context)
+4. **Check before reading** (if you must read at all)
+
+The ultimate workflow:
+```javascript
+// Generate → Write → Repeat
+await delegate_invoke({ prompt: "Create models/user.go" });
+await delegate_read({ output_id, options: { write_to: "models/user.go" }});
+// "Content written to models/user.go (5.2 KB, ~1300 tokens saved)"
+```

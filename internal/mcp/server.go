@@ -88,11 +88,11 @@ func (s *Server) registerTools() error {
 	// Initialize provider factory
 	providerFactory := providers.NewFactory(s.config)
 
-	// Initialize extractor
-	extract := extractor.New()
+	// Initialize extractor factory
+	extractFactory := extractor.NewFactory()
 
 	// Create handlers
-	invokeHandler := handlers.NewInvokeHandler(providerFactory, store, extract)
+	invokeHandler := handlers.NewInvokeHandler(providerFactory, store, extractFactory)
 	checkHandler := handlers.NewCheckHandler(store)
 	readHandler := handlers.NewReadHandler(store)
 

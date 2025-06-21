@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 // CheckHandler handles the check tool
@@ -19,8 +20,30 @@ func NewCheckHandler(storage Storage) *CheckHandler {
 
 // Handle processes a check request
 func (h *CheckHandler) Handle(ctx context.Context, req CheckRequest) (*CheckResponse, error) {
-	// TODO: Implement check logic
-	return nil, fmt.Errorf("not implemented")
+	// Validate request
+	if req.OutputID == "" {
+		return nil, fmt.Errorf("output_id is required")
+	}
+
+	// Get output from storage
+	output, err := h.storage.Get(req.OutputID)
+	if err != nil {
+		return nil, fmt.Errorf("get output: %w", err)
+	}
+
+	// Build response with metadata
+	resp := &CheckResponse{
+		ID:               output.ID,
+		CreatedAt:        output.CreatedAt.Format(time.RFC3339),
+		Model:            output.Model,
+		FileSizeBytes:    output.Metadata.TotalBytes,
+		EstimatedTokens:  output.Metadata.EstimatedTokens,
+		HasCode:          len(output.Response.Extracted.Code) > 0,
+		HasExplanation:   output.Response.Extracted.Explanation != "",
+		CodeBlocksCount:  len(output.Response.Extracted.Code),
+	}
+
+	return resp, nil
 }
 
 // CheckRequest represents the check tool parameters

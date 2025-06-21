@@ -39,27 +39,27 @@
 ### **Week 2: Complete Implementation (Days 8-14)**
 
 #### **Day 8-9: Remaining Providers**
-- [ ] Implement Anthropic provider (Claude models)
-- [ ] Normalize error handling across providers
-- [ ] Add retry logic (3 attempts, exponential backoff)
-- [ ] Provider selection based on model parameter
-- [ ] Integration tests with mock providers
+- [x] Implement Anthropic provider (Claude models)
+- [x] Normalize error handling across providers
+- [x] Add retry logic (3 attempts, exponential backoff)
+- [x] Provider selection based on model parameter
+- [x] Integration tests with mock providers
 
 #### **Day 10-11: Robust Code Extraction**
-- [ ] Improve extraction to handle multiple code blocks
-- [ ] Language detection for each code block
-- [ ] Separate code from explanation text
-- [ ] Handle edge cases (no code, malformed blocks)
-- [ ] Implement code_only mode to return just code without explanations
-- [ ] Add language_hint parameter for better extraction accuracy
-- [ ] Unit tests for extractor module
+- [x] Improve extraction to handle multiple code blocks
+- [x] Language detection for each code block
+- [x] Separate code from explanation text
+- [x] Handle edge cases (no code, malformed blocks)
+- [x] Implement code_only mode to return just code without explanations
+- [x] Add language_hint parameter for better extraction accuracy
+- [x] Unit tests for extractor module
 
 #### **Day 12-13: Check & Read Tools**
-- [ ] Implement `check` tool (fast metadata inspection)
-- [ ] Implement `read` tool with extraction options
-- [ ] Token estimation and counting
-- [ ] Truncation logic for `max_tokens` parameter
-- [ ] Test full workflow: invoke → check → read
+- [x] Implement `check` tool (fast metadata inspection)
+- [x] Implement `read` tool with extraction options
+- [x] Token estimation and counting
+- [x] Truncation logic for `max_tokens` parameter
+- [x] Test full workflow: invoke → check → read
 
 #### **Day 14: Error Handling & Hardening**
 - [ ] Implement structured error responses (DelegateError type)

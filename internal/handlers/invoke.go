@@ -10,9 +10,9 @@ import (
 
 // InvokeHandler handles the invoke tool
 type InvokeHandler struct {
-	providers ProviderFactory
-	storage   Storage
-	extractor Extractor
+	providers        ProviderFactory
+	storage          Storage
+	extractorFactory ExtractorFactory
 }
 
 // Provider generates content from LLMs
@@ -37,15 +37,22 @@ type Storage interface {
 type Extractor interface {
 	Extract(content string) (*Extraction, error)
 	ExtractCode(content string) ([]CodeBlock, error)
+	ExtractCodeOnly(content string) ([]CodeBlock, error)
 	ExtractExplanation(content string) (string, error)
 }
 
+// ExtractorFactory creates extractors with configuration
+type ExtractorFactory interface {
+	Create(languageHint string) Extractor
+	Default() Extractor
+}
+
 // NewInvokeHandler creates a new invoke handler
-func NewInvokeHandler(providers ProviderFactory, storage Storage, extractor Extractor) *InvokeHandler {
+func NewInvokeHandler(providers ProviderFactory, storage Storage, extractorFactory ExtractorFactory) *InvokeHandler {
 	return &InvokeHandler{
-		providers: providers,
-		storage:   storage,
-		extractor: extractor,
+		providers:        providers,
+		storage:          storage,
+		extractorFactory: extractorFactory,
 	}
 }
 
@@ -86,12 +93,33 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 		fullResponse += chunk.Content
 	}
 
-	// Extract code and explanation
-	extraction, err := h.extractor.Extract(fullResponse)
-	if err != nil {
-		// If extraction fails, still save the raw response
-		extraction = &Extraction{
-			Explanation: fullResponse,
+	// Create extractor with language hint if provided
+	extractor := h.extractorFactory.Create(req.LanguageHint)
+	
+	// Extract based on mode
+	var extraction *Extraction
+	if req.CodeOnly {
+		// Extract only code blocks
+		codeBlocks, err := extractor.ExtractCodeOnly(fullResponse)
+		if err != nil {
+			// If extraction fails, still save the raw response
+			extraction = &Extraction{
+				Explanation: fullResponse,
+			}
+		} else {
+			extraction = &Extraction{
+				Code:        codeBlocks,
+				Explanation: "", // No explanation in code_only mode
+			}
+		}
+	} else {
+		// Extract both code and explanation
+		extraction, err = extractor.Extract(fullResponse)
+		if err != nil {
+			// If extraction fails, still save the raw response
+			extraction = &Extraction{
+				Explanation: fullResponse,
+			}
 		}
 	}
 
@@ -108,7 +136,7 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 		},
 		Metadata: models.Metadata{
 			TotalBytes:      int64(len(fullResponse)),
-			EstimatedTokens: estimateTokens(fullResponse),
+			EstimatedTokens: EstimateTokens(fullResponse),
 		},
 	}
 
@@ -152,11 +180,6 @@ func (h *InvokeHandler) validateRequest(req InvokeRequest) error {
 	return nil
 }
 
-// estimateTokens provides a rough token count estimate
-func estimateTokens(text string) int {
-	// Simple estimation: ~4 characters per token
-	return len(text) / 4
-}
 
 // InvokeRequest represents the invoke tool parameters
 type InvokeRequest struct {

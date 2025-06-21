@@ -25,17 +25,26 @@ func NewFactory(cfg *config.Config) *Factory {
 
 // GetProvider returns a provider for the given model
 func (f *Factory) GetProvider(model string) (handlers.Provider, error) {
+	var provider handlers.Provider
+	var providerName string
+	
 	// Support mock providers for testing
 	if strings.HasPrefix(model, "mock-") {
-		return mock.NewProvider(model), nil
+		provider = mock.NewProvider(model)
+		providerName = "mock"
+	} else {
+		switch model {
+		case "gemini-2.5-flash", "gemini-2.5-pro":
+			provider = google.NewProvider(f.config.GoogleKey, model)
+			providerName = "google"
+		case "claude-sonnet-4-20250514", "claude-opus-4-20250514":
+			provider = anthropic.NewProvider(f.config.AnthropicKey, model)
+			providerName = "anthropic"
+		default:
+			return nil, fmt.Errorf("unsupported model: %s", model)
+		}
 	}
 	
-	switch model {
-	case "gemini-2.5-flash", "gemini-2.5-pro":
-		return google.NewProvider(f.config.GoogleKey, model), nil
-	case "claude-sonnet-4-20250514", "claude-opus-4-20250514":
-		return anthropic.NewProvider(f.config.AnthropicKey, model), nil
-	default:
-		return nil, fmt.Errorf("unsupported model: %s", model)
-	}
+	// Wrap all providers with retry logic
+	return NewRetryableProvider(provider, providerName), nil
 }

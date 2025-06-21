@@ -134,9 +134,9 @@ Once installed, Claude Code will automatically use Delegate when appropriate. Yo
 ```
 
 The three tools available:
-- `delegate.invoke` - Generate code with another LLM
-- `delegate.check` - Check output size before reading
-- `delegate.read` - Read generated content
+- `delegate_invoke` - Generate code with another LLM
+- `delegate_check` - Check output size before reading
+- `delegate_read` - Read generated content
 
 ## **6. Supported Models**
 

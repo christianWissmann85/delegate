@@ -9,23 +9,23 @@ Delegate is YOUR tool - built specifically to help you (Claude Code) generate co
 ### Your MCP Tools
 ```javascript
 // That's it. Three tools. Nothing else.
-delegate.invoke(params)  // Generate code with another LLM
-delegate.check(params)   // Check output size before reading
-delegate.read(params)    // Read the output (or parts of it)
+delegate_invoke(params)  // Generate code with another LLM
+delegate_check(params)   // Check output size before reading
+delegate_read(params)    // Read the output (or parts of it)
 ```
 
 ## Core Workflow Pattern
 
 ```javascript
 // 1. Generate code without using your tokens
-const output = await delegate.invoke({
+const output = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Create a complete Express.js REST API for a todo app",
     files: ["requirements.md", "database_schema.sql"]
 });
 
 // 2. Always check size before reading!
-const info = await delegate.check({
+const info = await delegate_check({
     output_id: output.id
 });
 console.log(`Output is ${info.size_kb}KB (≈${info.estimated_tokens} tokens)`);
@@ -33,13 +33,13 @@ console.log(`Output is ${info.size_kb}KB (≈${info.estimated_tokens} tokens)`);
 // 3. Read strategically
 if (info.estimated_tokens < 1000) {
     // Small enough - read everything
-    const result = await delegate.read({
+    const result = await delegate_read({
         output_id: output.id,
         options: { extract: "all" }
     });
 } else {
     // Too big - just get the code
-    const result = await delegate.read({
+    const result = await delegate_read({
         output_id: output.id,
         options: { extract: "code", max_tokens: 2000 }
     });
@@ -73,7 +73,7 @@ if (info.estimated_tokens < 1000) {
 ### Pattern 1: Large Feature Implementation
 ```javascript
 // User wants a complete feature
-const output = await delegate.invoke({
+const output = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: `Create a complete user authentication system with:
     - JWT tokens
@@ -85,11 +85,11 @@ const output = await delegate.invoke({
 });
 
 // Check what we got
-const info = await delegate.check({ output_id: output.id });
+const info = await delegate_check({ output_id: output.id });
 // Likely 10-20KB of code
 
 // Read in chunks
-const models = await delegate.read({
+const models = await delegate_read({
     output_id: output.id,
     options: { extract: "code", language: "javascript", max_tokens: 1000 }
 });
@@ -99,14 +99,14 @@ const models = await delegate.read({
 ### Pattern 2: Code Analysis/Refactoring
 ```javascript
 // Attach existing code for context
-const output = await delegate.invoke({
+const output = await delegate_invoke({
     model: "claude-sonnet-4-20250514",  // Use Claude for analysis
     prompt: "Analyze this code for security vulnerabilities and suggest fixes",
     files: ["src/auth/login.js", "src/auth/session.js"]
 });
 
 // Read the analysis
-const analysis = await delegate.read({
+const analysis = await delegate_read({
     output_id: output.id,
     options: { extract: "explanation" }  // Just the analysis, no code
 });
@@ -115,19 +115,19 @@ const analysis = await delegate.read({
 ### Pattern 3: Iterative Development
 ```javascript
 // First pass - basic structure
-const v1 = await delegate.invoke({
+const v1 = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Create the basic structure for a GraphQL API server"
 });
 
 // Check and read
-const structure = await delegate.read({ 
+const structure = await delegate_read({ 
     output_id: v1.id, 
     options: { extract: "code" }
 });
 
 // Second pass - add specific features
-const v2 = await delegate.invoke({
+const v2 = await delegate_invoke({
     model: "gemini-2.5-pro",  // Upgrade model for complex logic
     prompt: "Add user authentication to this GraphQL server",
     files: ["generated_structure.js"]  // Feed back the previous output
@@ -137,7 +137,7 @@ const v2 = await delegate.invoke({
 ### Pattern 4: Document Analysis (Your Context Saver!)
 ```javascript
 // Scenario: Need to analyze multiple large documents
-const analysis = await delegate.invoke({
+const analysis = await delegate_invoke({
     model: "gemini-2.5-pro",  // 1M token context window!
     prompt: `Analyze these architecture documents and extract:
     1. All API endpoint patterns
@@ -150,13 +150,13 @@ const analysis = await delegate.invoke({
 });
 
 // I get a focused summary instead of reading 20k lines
-const insights = await delegate.read({ output_id: analysis.id });
+const insights = await delegate_read({ output_id: analysis.id });
 ```
 
 ### Pattern 5: Multi-Document Research
 ```javascript
 // Research across massive documentation
-const research = await delegate.invoke({
+const research = await delegate_invoke({
     model: "gemini-2.5-pro",
     prompt: `Read all these docs and answer:
     - How is error handling implemented across the codebase?
@@ -168,7 +168,7 @@ const research = await delegate.invoke({
 });
 
 // Extract just the findings
-const findings = await delegate.read({
+const findings = await delegate_read({
     output_id: research.id,
     options: { max_tokens: 2000 }  // Get concise results
 });
@@ -177,7 +177,7 @@ const findings = await delegate.read({
 ### Pattern 6: Codebase Analysis
 ```javascript
 // Analyze entire codebases without filling my context
-const review = await delegate.invoke({
+const review = await delegate_invoke({
     model: "gemini-2.5-flash",  // Fast for large volume
     prompt: `Review this codebase for:
     - Potential security vulnerabilities
@@ -190,7 +190,7 @@ const review = await delegate.invoke({
 });
 
 // Get actionable insights
-const issues = await delegate.read({
+const issues = await delegate_read({
     output_id: review.id,
     options: { extract: "all" }
 });
@@ -201,13 +201,13 @@ const issues = await delegate.read({
 ### 1. Always Check Before Reading
 ```javascript
 // ❌ BAD - Might consume 10k tokens unexpectedly
-const result = await delegate.read({ output_id: output.id });
+const result = await delegate_read({ output_id: output.id });
 
 // ✅ GOOD - Know what you're getting into
-const info = await delegate.check({ output_id: output.id });
+const info = await delegate_check({ output_id: output.id });
 if (info.estimated_tokens > 5000) {
     // Too big! Extract just what you need
-    const code = await delegate.read({
+    const code = await delegate_read({
         output_id: output.id,
         options: { extract: "code", max_tokens: 2000 }
     });
@@ -217,12 +217,12 @@ if (info.estimated_tokens > 5000) {
 ### 2. Use File Attachments Liberally
 ```javascript
 // ❌ BAD - LLM has no context
-await delegate.invoke({
+await delegate_invoke({
     prompt: "Update the API to handle the new requirements"
 });
 
 // ✅ GOOD - Clear context
-await delegate.invoke({
+await delegate_invoke({
     prompt: "Update the API to handle the new requirements",
     files: ["new_requirements.md", "current_api.js", "test_cases.js"]
 });
@@ -234,14 +234,14 @@ await delegate.invoke({
 // - First read just the code to implement
 // - Then read explanation if user asks questions
 
-const code = await delegate.read({
+const code = await delegate_read({
     output_id: output.id,
     options: { extract: "code" }
 });
 // Implement the code...
 
 // Later, if user asks "why did you do X?"
-const explanation = await delegate.read({
+const explanation = await delegate_read({
     output_id: output.id,
     options: { extract: "explanation", max_tokens: 500 }
 });
@@ -250,7 +250,7 @@ const explanation = await delegate.read({
 ### 4. Handle Errors Gracefully
 ```javascript
 try {
-    const output = await delegate.invoke({
+    const output = await delegate_invoke({
         model: "gemini-2.5-flash",
         prompt: "Generate code",
         max_tokens: 8000
@@ -296,20 +296,20 @@ Is it security/payment related?
 ### Code-Only Mode
 ```javascript
 // When you just need the code without explanations
-const output = await delegate.invoke({
+const output = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Create a Python function to calculate fibonacci numbers",
     code_only: true  // Returns only code blocks
 });
 
 // Reading will return just the code
-const code = await delegate.read({ output_id: output.id });
+const code = await delegate_read({ output_id: output.id });
 ```
 
 ### Language Hints for Better Extraction
 ```javascript
 // Help the extractor by specifying expected language
-const output = await delegate.invoke({
+const output = await delegate_invoke({
     model: "gemini-2.5-pro",
     prompt: "Create a REST API with TypeScript and tests",
     language_hint: "typescript"  // Improves extraction accuracy
@@ -319,7 +319,7 @@ const output = await delegate.invoke({
 ### Custom Timeouts for Long Tasks
 ```javascript
 // Override default timeout for complex generations
-const output = await delegate.invoke({
+const output = await delegate_invoke({
     model: "claude-opus-4-20250514",
     prompt: "Generate a complete microservices architecture...",
     timeout: 120  // 2 minutes instead of default 60s
@@ -333,7 +333,7 @@ When Delegate encounters provider issues, it returns structured errors that help
 
 ```javascript
 try {
-    const output = await delegate.invoke({
+    const output = await delegate_invoke({
         model: "gemini-2.5-flash",
         prompt: "Generate a complex React dashboard"
     });
@@ -343,7 +343,7 @@ try {
         console.log(`Rate limited. Waiting ${error.retry_after}s...`);
         
         // Option 2: Try alternative model
-        const output = await delegate.invoke({
+        const output = await delegate_invoke({
             model: error.alternative_models[0], // e.g., "claude-sonnet-4-20250514"
             prompt: "Generate a complex React dashboard"
         });
@@ -359,11 +359,11 @@ try {
 // Pattern 1: Try fast model first, fall back to powerful model
 async function generateWithFallback(prompt) {
     try {
-        return await delegate.invoke({ model: "gemini-2.5-flash", prompt });
+        return await delegate_invoke({ model: "gemini-2.5-flash", prompt });
     } catch (error) {
         if (error.error === "provider_unavailable") {
             console.log("Gemini unavailable, trying Claude...");
-            return await delegate.invoke({ model: "claude-opus-4-20250514", prompt });
+            return await delegate_invoke({ model: "claude-opus-4-20250514", prompt });
         }
         throw error;
     }
@@ -372,7 +372,7 @@ async function generateWithFallback(prompt) {
 // Pattern 2: Inform user and let them decide
 async function generateWithUserChoice(prompt) {
     try {
-        return await delegate.invoke({ model: "gemini-2.5-pro", prompt });
+        return await delegate_invoke({ model: "gemini-2.5-pro", prompt });
     } catch (error) {
         if (error.error === "rate_limited") {
             console.log(`Gemini is rate limited (retry in ${error.retry_after}s).`);
@@ -411,7 +411,7 @@ async function generateWithUserChoice(prompt) {
 // User: "Create a real-time chat application with rooms"
 
 // 1. Generate the data models
-const models = await delegate.invoke({
+const models = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: `Create data models for a real-time chat app:
     - Users (with online status)
@@ -421,24 +421,24 @@ const models = await delegate.invoke({
 });
 
 // 2. Check size
-const modelsInfo = await delegate.check({ output_id: models.id });
+const modelsInfo = await delegate_check({ output_id: models.id });
 console.log(`Models: ${modelsInfo.size_kb}KB`);
 
 // 3. Read and implement models
-const modelCode = await delegate.read({
+const modelCode = await delegate_read({
     output_id: models.id,
     options: { extract: "code" }
 });
 
 // 4. Generate WebSocket handlers
-const websocket = await delegate.invoke({
+const websocket = await delegate_invoke({
     model: "gemini-2.5-pro",  // More complex, upgrade model
     prompt: "Create Socket.io handlers for real-time chat with rooms",
     files: ["generated_models.js"]  // Pass the models as context
 });
 
 // 5. Generate frontend components
-const frontend = await delegate.invoke({
+const frontend = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Create React components for the chat interface",
     files: ["socket_events.js", "ui_mockup.png"]

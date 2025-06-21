@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/christianwissmann85/delegate/internal/handlers"
 	"github.com/christianwissmann85/delegate/internal/logger"
 	"github.com/christianwissmann85/delegate/internal/models"
 )
@@ -209,7 +210,9 @@ func (p *Protocol) handleToolCall(id interface{}, params json.RawMessage) error 
 		return err
 	}
 
-	return p.sendResponse(id, result)
+	// Wrap result in MCP content array format
+	wrappedResult := p.wrapToolResult(callParams.Name, result)
+	return p.sendResponse(id, wrappedResult)
 }
 
 // sendResponse sends a JSON-RPC response
@@ -246,6 +249,44 @@ func (p *Protocol) sendError(id interface{}, err *Error) error {
 
 	_, errWrite := fmt.Fprintf(p.writer, "%s\n", data)
 	return errWrite
+}
+
+// wrapToolResult wraps tool handler results in MCP content array format
+func (p *Protocol) wrapToolResult(toolName string, result interface{}) map[string]interface{} {
+	var message string
+	
+	switch toolName {
+	case "delegate_invoke":
+		if invokeResp, ok := result.(*handlers.InvokeResponse); ok {
+			message = fmt.Sprintf("Task delegated successfully. Output ID: %s", invokeResp.OutputID)
+		}
+	case "delegate_check":
+		if checkResp, ok := result.(*handlers.CheckResponse); ok {
+			message = fmt.Sprintf("Output %s: %d bytes, ~%d tokens, created at %s", 
+				checkResp.ID, checkResp.FileSizeBytes, checkResp.EstimatedTokens, checkResp.CreatedAt)
+		}
+	case "delegate_read":
+		if readResp, ok := result.(*handlers.ReadResponse); ok {
+			// For read, we return the actual content
+			message = readResp.Content
+		}
+	default:
+		// Fallback: try to marshal as JSON
+		if data, err := json.Marshal(result); err == nil {
+			message = string(data)
+		} else {
+			message = "Operation completed successfully"
+		}
+	}
+	
+	return map[string]interface{}{
+		"content": []map[string]interface{}{
+			{
+				"type": "text",
+				"text": message,
+			},
+		},
+	}
 }
 
 // mapErrorTypeToCode maps DelegateError types to JSON-RPC error codes

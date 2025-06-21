@@ -38,7 +38,7 @@ type InvokeTool struct {
 }
 
 func (t *InvokeTool) Name() string {
-	return "delegate.invoke"
+	return "delegate_invoke"
 }
 
 func (t *InvokeTool) Description() string {
@@ -100,7 +100,7 @@ type CheckTool struct {
 }
 
 func (t *CheckTool) Name() string {
-	return "delegate.check"
+	return "delegate_check"
 }
 
 func (t *CheckTool) Description() string {
@@ -134,7 +134,7 @@ type ReadTool struct {
 }
 
 func (t *ReadTool) Name() string {
-	return "delegate.read"
+	return "delegate_read"
 }
 
 func (t *ReadTool) Description() string {

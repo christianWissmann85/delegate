@@ -77,7 +77,7 @@ Claude Code will automatically use Delegate without consuming its own precious t
 2. **Claude Code uses Delegate to generate it**
    ```javascript
    // Behind the scenes:
-   await delegate.invoke({
+   await delegate_invoke({
      model: "gemini-2.5-flash",
      prompt: "Create a complete REST API...",
      files: ["requirements.md"]
@@ -87,14 +87,14 @@ Claude Code will automatically use Delegate without consuming its own precious t
 3. **Claude Code checks the size first**
    ```javascript
    // Smart token management:
-   const info = await delegate.check({ output_id: "out_123" });
+   const info = await delegate_check({ output_id: "out_123" });
    // Returns: { size_kb: 15.2, estimated_tokens: 3800, has_code: true }
    ```
 
 4. **Claude Code reads strategically**
    ```javascript
    // Only read what's needed:
-   const code = await delegate.read({ 
+   const code = await delegate_read({ 
      output_id: "out_123",
      options: { extract: "code" }
    });

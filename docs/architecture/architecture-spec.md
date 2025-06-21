@@ -52,7 +52,7 @@ Communication is handled via the Model Context Protocol (MCP), exposing three to
 
 ### **Tool Definitions**
 
-#### **delegate.invoke**
+#### **delegate_invoke**
 
 * **Description:** The primary tool to delegate a task to an external LLM. It generates an output file and returns metadata about it. It does **not** return the content itself.
 * **Parameters:**
@@ -82,7 +82,7 @@ Communication is handled via the Model Context Protocol (MCP), exposing three to
   3. Once the stream is complete, process the file and create the final output artifact
   4. This streaming is invisible to Claude Code - it only sees the final result
 
-#### **delegate.check**
+#### **delegate_check**
 
 * **Description:** Inspects a previously generated output file without reading its content. Provides crucial metadata for Claude Code to decide *if* and *how* to read the file.
 * **Parameters:**
@@ -104,7 +104,7 @@ Communication is handled via the Model Context Protocol (MCP), exposing three to
   }
   ```
 
-#### **delegate.read**
+#### **delegate_read**
 
 * **Description:** Retrieves the actual content from an output file, with options to extract specific parts and limit token count.
 * **Parameters:**

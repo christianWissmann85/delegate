@@ -208,7 +208,7 @@ func (h *InvokeHandler) streamToFile(stream <-chan Chunk) (string, error) {
 // Exact tool definitions
 var tools = []MCPTool{
     {
-        Name: "delegate.invoke",
+        Name: "delegate_invoke",
         Description: "Delegate heavy tasks (code generation, document analysis, large file processing) to other LLMs to save Claude Code's context tokens. Use this when: generating large amounts of code, analyzing multiple documents, processing entire codebases, or any task that would consume significant context. Supports Gemini models (1M token context) and Claude models. Returns an output_id for async retrieval.",
         InputSchema: JSONSchema{
             Type: "object",

@@ -27,7 +27,7 @@ These keys are never transmitted except to their respective providers over HTTPS
 
 ## **MCP Tools**
 
-### **delegate.invoke**
+### **delegate_invoke**
 
 Delegates a generation task to a specified LLM. This is an asynchronous operation that creates a persistent output artifact and returns a unique ID for it.
 
@@ -35,7 +35,7 @@ Delegates a generation task to a specified LLM. This is an asynchronous operatio
 
 ```typescript
 {
-  name: "delegate.invoke",
+  name: "delegate_invoke",
   description: "Generate code or content using an external LLM",
   parameters: {
     model: {
@@ -110,7 +110,7 @@ const result = await mcp.invoke({
 | `size_kb` | number | Size of the generated response in kilobytes |
 | `model` | string | The model that was used, echoed back |
 
-### **delegate.check**
+### **delegate_check**
 
 Retrieves metadata about a previously generated output artifact without reading its content. Essential for token-efficient operations.
 
@@ -118,7 +118,7 @@ Retrieves metadata about a previously generated output artifact without reading 
 
 ```typescript
 {
-  name: "delegate.check",
+  name: "delegate_check",
   description: "Get metadata about a generated output without reading content",
   parameters: {
     output_id: {
@@ -162,7 +162,7 @@ const metadata = await mcp.check({
 | `has_explanation` | boolean | Whether explanatory text was detected |
 | `languages` | array | Programming languages found in code blocks |
 
-### **delegate.read**
+### **delegate_read**
 
 Reads the content of an output artifact, with powerful options for extraction and truncation.
 
@@ -170,7 +170,7 @@ Reads the content of an output artifact, with powerful options for extraction an
 
 ```typescript
 {
-  name: "delegate.read",
+  name: "delegate_read",
   description: "Read content from a generated output",
   parameters: {
     output_id: {

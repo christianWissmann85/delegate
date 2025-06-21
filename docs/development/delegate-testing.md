@@ -209,18 +209,18 @@ func TestGoldenPath(t *testing.T) {
     client := mcp.NewClient(server.Address())
     
     // Test full workflow
-    invokeResp := client.CallTool("delegate.invoke", map[string]any{
+    invokeResp := client.CallTool("delegate_invoke", map[string]any{
         "model": "gemini-2.5-flash",
         "prompt": "Create a function to calculate fibonacci",
     })
     
-    checkResp := client.CallTool("delegate.check", map[string]any{
+    checkResp := client.CallTool("delegate_check", map[string]any{
         "output_id": invokeResp["id"],
     })
     
     assert.True(t, checkResp["has_code"].(bool))
     
-    readResp := client.CallTool("delegate.read", map[string]any{
+    readResp := client.CallTool("delegate_read", map[string]any{
         "output_id": invokeResp["id"],
         "options": map[string]any{"extract": "code"},
     })

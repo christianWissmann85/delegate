@@ -4,17 +4,17 @@ This document defines the exact descriptions that should be used when registerin
 
 ## Tool Descriptions
 
-### delegate.invoke
+### delegate_invoke
 ```
 description: "Delegate heavy tasks (code generation, document analysis, large file processing) to other LLMs to save Claude Code's context tokens. Use this when: generating large amounts of code, analyzing multiple documents, processing entire codebases, or any task that would consume significant context. Supports Gemini models (1M token context) and Claude models. Returns an output_id for async retrieval."
 ```
 
-### delegate.check
+### delegate_check
 ```
 description: "Get metadata about a delegated task output including size, token count, and creation time. Always use this before reading to avoid consuming unnecessary tokens. Returns file size in bytes and estimated token count."
 ```
 
-### delegate.read
+### delegate_read
 ```
 description: "Retrieve results from a delegated task. Use 'extract' option to get only code or explanation. Use 'max_tokens' to limit response size. Best practice: always check() before read() to know what you're getting."
 ```
@@ -33,7 +33,7 @@ When registering tools in the MCP server (likely in `internal/mcp/server.go`):
 ```go
 tools := []MCPTool{
     {
-        Name: "delegate.invoke",
+        Name: "delegate_invoke",
         Description: "Delegate heavy tasks (code generation, document analysis, large file processing) to other LLMs...",
         // ... parameters
     },

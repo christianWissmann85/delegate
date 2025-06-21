@@ -28,7 +28,7 @@ func TestServer_InvokeFlow(t *testing.T) {
 			"prompt": "Write a hello world function"
 		}`)
 		
-		result, err := server.tools["delegate.invoke"].Handler(context.Background(), params)
+		result, err := server.tools["delegate_invoke"].Handler(context.Background(), params)
 		if err != nil {
 			t.Fatalf("Invoke failed: %v", err)
 		}
@@ -51,9 +51,9 @@ func TestServer_ToolRegistration(t *testing.T) {
 	server := NewServer(cfg)
 	
 	expectedTools := []string{
-		"delegate.invoke",
-		"delegate.check",
-		"delegate.read",
+		"delegate_invoke",
+		"delegate_check",
+		"delegate_read",
 	}
 	
 	for _, toolName := range expectedTools {

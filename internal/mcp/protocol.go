@@ -110,22 +110,17 @@ func (p *Protocol) handleInitialize(id interface{}, params json.RawMessage) erro
 		"client_version": initParams.ClientInfo.Version,
 	})
 
-	// Build tool list
-	tools := make([]ToolInfo, 0, len(p.server.tools))
-	for _, tool := range p.server.tools {
-		tools = append(tools, ToolInfo{
-			Name:        tool.Name(),
-			Description: tool.Description(),
-			InputSchema: tool.Schema(),
-		})
-	}
-
 	result := InitializeResult{
+		ProtocolVersion: "2024-11-05",
+		Capabilities: Capabilities{
+			Tools: &ToolsCapability{
+				ListChanged: false,
+			},
+		},
 		ServerInfo: ServerInfo{
 			Name:    "delegate",
 			Version: "1.0.0",
 		},
-		Tools: tools,
 	}
 
 	return p.sendResponse(id, result)

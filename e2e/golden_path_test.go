@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -47,6 +48,7 @@ type MCPClient struct {
 	stdout *bufio.Reader
 	stderr io.ReadCloser
 	msgID  int
+	mu     sync.Mutex // Protect concurrent access
 }
 
 // StartMCPServer starts the delegate server and returns a client
@@ -124,6 +126,9 @@ func (c *MCPClient) Stop(t *testing.T) {
 
 // SendMessage sends a JSON-RPC message and waits for response
 func (c *MCPClient) SendMessage(method string, params interface{}) (*MCPMessage, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	msg := MCPMessage{
 		JSONRPC: "2.0",
 		ID:      c.msgID,

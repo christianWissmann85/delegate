@@ -41,8 +41,19 @@ type ClientInfo struct {
 
 // InitializeResult represents initialization response
 type InitializeResult struct {
-	ServerInfo ServerInfo `json:"serverInfo"`
-	Tools      []ToolInfo `json:"tools"`
+	ProtocolVersion string       `json:"protocolVersion"`
+	Capabilities    Capabilities `json:"capabilities"`
+	ServerInfo      ServerInfo   `json:"serverInfo"`
+}
+
+// Capabilities describes server capabilities
+type Capabilities struct {
+	Tools *ToolsCapability `json:"tools,omitempty"`
+}
+
+// ToolsCapability indicates tool support
+type ToolsCapability struct {
+	ListChanged bool `json:"listChanged,omitempty"`
 }
 
 // ServerInfo contains server information

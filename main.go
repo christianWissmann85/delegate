@@ -9,9 +9,13 @@ import (
 	"github.com/christianwissmann85/delegate/internal/config"
 	"github.com/christianwissmann85/delegate/internal/logger"
 	"github.com/christianwissmann85/delegate/internal/mcp"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file if it exists
+	_ = godotenv.Load()
+	
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {

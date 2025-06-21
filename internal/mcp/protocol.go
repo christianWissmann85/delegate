@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/christianwissmann85/delegate/internal/logger"
 	"github.com/christianwissmann85/delegate/internal/models"
@@ -34,26 +35,36 @@ func NewProtocol(server *Server, logLevel logger.Level) *Protocol {
 func (p *Protocol) HandleMessages(ctx context.Context) error {
 	p.logger.Info("MCP server started, waiting for messages")
 	
+	scanner := bufio.NewScanner(p.reader)
+	
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			// Read next message
-			line, err := p.reader.ReadString('\n')
-			if err != nil {
-				if err == io.EOF {
-					return nil
+			// Check if there's input available
+			if scanner.Scan() {
+				line := scanner.Text()
+				
+				// Skip empty lines
+				if strings.TrimSpace(line) == "" {
+					continue
 				}
-				return fmt.Errorf("read error: %w", err)
-			}
-
-			// Parse and handle message
-			if err := p.handleMessage([]byte(line)); err != nil {
-				p.logger.Error("Error handling message", map[string]interface{}{
-					"error": err.Error(),
-				})
-				// Continue processing other messages
+				
+				// Parse and handle message
+				if err := p.handleMessage([]byte(line)); err != nil {
+					p.logger.Error("Error handling message", map[string]interface{}{
+						"error": err.Error(),
+					})
+					// Continue processing other messages
+				}
+			} else {
+				// Check for scanner error
+				if err := scanner.Err(); err != nil {
+					return fmt.Errorf("scanner error: %w", err)
+				}
+				// EOF reached - this is normal when the client disconnects
+				return nil
 			}
 		}
 	}
@@ -141,7 +152,15 @@ func (p *Protocol) handleToolsList(id interface{}) error {
 			InputSchema: tool.Schema(),
 		})
 	}
-	return p.sendResponse(id, tools)
+	
+	// Wrap the tools array in an object with a "tools" field
+	response := struct {
+		Tools []ToolInfo `json:"tools"`
+	}{
+		Tools: tools,
+	}
+	
+	return p.sendResponse(id, response)
 }
 
 // handleToolCall handles tool invocation

@@ -7,11 +7,11 @@
 ### **Week 1: Core MCP Implementation (Days 1-7)**
 
 #### **Day 1-2: Project Setup & MCP Server Foundation**
-- [ ] Initialize Go module: `go mod init github.com/christianwissmann85/delegate`
-- [ ] Set up MCP server framework that can handle tool calls
-- [ ] Create directory structure as specified in architecture doc
-- [ ] Implement basic MCP protocol handling (connect, initialize, tool registration)
-- [ ] Add structured logging to stderr (JSON format)
+- [x] Initialize Go module: `go mod init github.com/christianwissmann85/delegate`
+- [x] Set up MCP server framework that can handle tool calls
+- [x] Create directory structure as specified in architecture doc
+- [x] Implement basic MCP protocol handling (connect, initialize, tool registration)
+- [x] Add structured logging to stderr (JSON format)
 
 #### **Day 3-4: Storage Layer**
 - [ ] Implement `Storage` interface for file operations

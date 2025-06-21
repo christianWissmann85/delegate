@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/christianwissmann85/delegate/internal/config"
+	"github.com/christianwissmann85/delegate/internal/logger"
 	"github.com/christianwissmann85/delegate/internal/mcp"
 )
 
@@ -15,9 +15,16 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		// Use basic logger for early errors
+		log := logger.New("main", logger.ErrorLevel)
+		log.Fatal("Failed to load config", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
+	// Create logger with configured level
+	log := logger.New("main", logger.ParseLevel(cfg.LogLevel))
+	
 	// Create MCP server
 	server := mcp.NewServer(cfg)
 
@@ -30,12 +37,18 @@ func main() {
 
 	go func() {
 		<-sigChan
-		log.Println("Shutting down...")
+		log.Info("Received shutdown signal")
 		cancel()
 	}()
 
 	// Start server
+	log.Info("Starting Delegate", map[string]interface{}{
+		"pid": os.Getpid(),
+	})
+	
 	if err := server.Start(ctx); err != nil {
-		log.Fatalf("Server error: %v", err)
+		log.Fatal("Server error", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 }

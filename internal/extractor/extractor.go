@@ -2,8 +2,6 @@ package extractor
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/christianwissmann85/delegate/internal/handlers"
 )

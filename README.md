@@ -52,23 +52,25 @@ Use Delegate to review this 10k line codebase and identify security issues
 - ✅ **4 Powerful Models**: Gemini 2.5 Flash/Pro (1M tokens!), Claude Sonnet/Opus 4
 - ✅ **Token Efficient**: Delegate document analysis, code generation, any heavy lifting
 - ✅ **Context Preservation**: Keep Claude Code's context clean for actual work
-- ✅ **No Complexity**: Read [NO_SCOPE_CREEP.md](docs/NO_SCOPE_CREEP.md)
+- ✅ **No Complexity**: Read [NO_SCOPE_CREEP.md](docs/development/NO_SCOPE_CREEP.md)
 
 ## Documentation
 
-- [Getting Started](docs/Getting%20Started%20Guide.md) - Start here!
-- [API Reference](docs/Delegate%20API%20Reference%20v1.0.md) - Tool specifications
-- [Model Reference](docs/Model%20Reference%20Card%20v1.0.md) - Which model when?
-- [Architecture](docs/Delegate%20Architecture%20&%20Technical%20Specification%20v1.0.md) - How it works
-- [Claude Code Guide](docs/claude-code-guide-updated.md) - Usage patterns
+📚 **[View Full Documentation](docs/README.md)**
+
+### Quick Links
+- [Getting Started](docs/guides/getting-started-guide.md) - Start here!
+- [API Reference](docs/reference/api-reference.md) - Tool specifications
+- [Claude Code Guide](docs/guides/claude-code-guide.md) - Usage patterns
+- [Architecture](docs/architecture/architecture-spec.md) - Technical details
 
 ## Project Status
 
-🚧 **In Development** - Following the [Implementation Roadmap](docs/Implementation%20Roadmap%20-%20Delegate%20v1.0.md)
+🚧 **In Development** - Following the [Implementation Roadmap](docs/development/implementation-roadmap.md)
 
 ## Philosophy
 
-This project has one sacred document: [NO_SCOPE_CREEP.md](docs/NO_SCOPE_CREEP.md). We do three things. We do them well. That's it.
+This project has one sacred document: [NO_SCOPE_CREEP.md](docs/development/NO_SCOPE_CREEP.md). We do three things. We do them well. That's it.
 
 ## Requirements
 

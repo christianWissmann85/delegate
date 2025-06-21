@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Delegate is an MCP (Model Context Protocol) server that allows Claude Code to delegate code generation tasks to other LLMs (Gemini and Claude models) to save context tokens. The project is currently in the documentation phase, with implementation starting per the 3-week roadmap.
+Delegate is an MCP (Model Context Protocol) server that allows Claude Code to delegate heavy tasks (code generation, document analysis, large file processing) to other LLMs (Gemini and Claude models) to save context tokens. 
 
-**Core Philosophy**: Read `docs/NO_SCOPE_CREEP.md` before making ANY changes. This project does exactly 3 things via MCP tools: invoke, check, and read.
+**Current Status**: Day 2 of 21 - MCP server foundation complete, starting storage layer.
+
+**Core Philosophy**: Read `docs/development/NO_SCOPE_CREEP.md` before making ANY changes. This project does exactly 3 things via MCP tools: invoke, check, and read.
 
 ## Development Commands
 
@@ -85,8 +87,33 @@ delegate/
 - Local filesystem only - no cloud storage
 - Single prompt, single response - no conversations
 
-## Current Status
+## Current Implementation Status
 
-Project is in documentation phase. Implementation follows the roadmap in `docs/implementation-roadmap.md`. All technical specifications are in `docs/Delegate Architecture & Technical Specification.md`.
+- ✅ Day 1-2: MCP Server Foundation (COMPLETE)
+  - JSON-RPC protocol handling
+  - Tool registration with full schemas
+  - Structured JSON logging
+  - Configuration management
+  
+- 🚧 Day 3-4: Storage Layer (NEXT)
+  - File-based storage implementation
+  - Output ID generation
+  - Atomic writes
+  - Cleanup routine
 
-When implementing, follow the daily tasks in the roadmap strictly. The goal is a production-ready MCP server available via `npx @christianwissmann85/delegate` in 3 weeks.
+See `docs/development/implementation-roadmap.md` for full schedule.
+
+## Documentation Structure
+
+```
+docs/
+├── architecture/     # Technical specs and decisions
+├── development/      # Roadmap, testing, philosophy
+├── guides/          # User and developer guides
+└── reference/       # API and model references
+```
+
+Key documents:
+- Architecture: `docs/architecture/architecture-spec.md`
+- Current roadmap: `docs/development/implementation-roadmap.md`
+- Philosophy: `docs/development/NO_SCOPE_CREEP.md`

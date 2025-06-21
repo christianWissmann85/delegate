@@ -138,7 +138,7 @@ func (t *ReadTool) Name() string {
 }
 
 func (t *ReadTool) Description() string {
-	return "Retrieve results from a delegated task. Use 'extract' option to get only code or explanation. Use 'max_tokens' to limit response size. Best practice: always check() before read() to know what you're getting."
+	return "Retrieve results from a delegated task. Use 'extract' option to get only code or explanation. Use 'max_tokens' to limit response size. **KEY FEATURE**: Use 'write_to' to save output directly to a file WITHOUT consuming any tokens! Best practice: always check() before read() to know what you're getting."
 }
 
 func (t *ReadTool) Schema() JSONSchema {
@@ -164,7 +164,7 @@ func (t *ReadTool) Schema() JSONSchema {
 					},
 					"write_to": {
 						Type:        "string",
-						Description: "Write content to this file path instead of returning it",
+						Description: "Write content to this file path instead of returning it (SAVES TOKENS - content is written directly without being returned to Claude Code!)",
 					},
 				},
 			},

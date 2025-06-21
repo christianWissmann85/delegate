@@ -195,6 +195,10 @@ Reads the content of an output artifact, with powerful options for extraction an
         language: {
           type: "string",
           description: "When extracting code, filter to this language"
+        },
+        write_to: {
+          type: "string",
+          description: "Write content to this file path instead of returning it (SAVES TOKENS!)"
         }
       }
     }
@@ -227,11 +231,21 @@ const jsOnly = await mcp.read({
     language: "javascript"
   }
 });
+
+// Write directly to file WITHOUT returning content (ZERO TOKENS!)
+const result = await mcp.read({
+  output_id: "out_20250620_204000",
+  options: {
+    extract: "code",
+    write_to: "src/middleware/error-handler.js"
+  }
+});
 ```
 
 #### **Success Response**
 
 ```javascript
+// Standard response (when not using write_to)
 {
   content: "const errorHandler = (err, req, res, next) => {\n  // ... code here\n}",
   truncated: false,
@@ -239,17 +253,27 @@ const jsOnly = await mcp.read({
   extraction: "code",
   language: "javascript"
 }
+
+// Response when using write_to (no content returned!)
+{
+  content: "Content written to src/middleware/error-handler.js",
+  truncated: false,
+  tokens: 0,
+  extraction: "code",
+  file_written: true
+}
 ```
 
 **Response Fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `content` | string | The requested content |
+| `content` | string | The requested content (or success message when using write_to) |
 | `truncated` | boolean | Whether content was cut off at max_tokens |
-| `tokens` | number | Actual token count returned |
+| `tokens` | number | Actual token count returned (0 when using write_to) |
 | `extraction` | string | What was extracted ("all", "code", or "explanation") |
 | `language` | string | Language filter applied (if any) |
+| `file_written` | boolean | True when write_to was used successfully |
 
 ## **Error Handling**
 

@@ -16,15 +16,16 @@ description: "Get metadata about a delegated task output including size, token c
 
 ### delegate_read
 ```
-description: "Retrieve results from a delegated task. Use 'extract' option to get only code or explanation. Use 'max_tokens' to limit response size. Best practice: always check() before read() to know what you're getting."
+description: "Retrieve results from a delegated task. Use 'extract' option to get only code or explanation. Use 'max_tokens' to limit response size. **KEY FEATURE**: Use 'write_to' to save output directly to a file WITHOUT consuming any tokens! Best practice: always check() before read() to know what you're getting."
 ```
 
 ## Why These Descriptions Work
 
 1. **Clear use cases** - I immediately know when to use invoke (heavy tasks, multiple docs, large generation)
-2. **Token awareness** - Emphasizes the token-saving benefit
+2. **Token awareness** - Emphasizes the token-saving benefit, especially the write_to feature
 3. **Practical guidance** - Tells me to check before reading
 4. **Context hints** - Mentions Gemini's 1M token advantage
+5. **Revolutionary feature highlight** - The write_to option in delegate_read is prominently featured as a KEY FEATURE
 
 ## Implementation Notes
 

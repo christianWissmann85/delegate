@@ -51,13 +51,23 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 
 	// Extract requested content
 	var content string
+	var fileContent string // Content specifically prepared for file writing
+	
 	switch req.Options.Extract {
 	case "all":
 		content = output.Response.Raw
+		fileContent = output.Response.Raw
 	case "code":
 		content = h.extractCodeContent(output)
+		// For file writing, use the file-specific extraction
+		if req.Options.WriteTo != "" {
+			fileContent = h.extractCodeForFile(output, req.Options.WriteTo)
+		} else {
+			fileContent = content
+		}
 	case "explanation":
 		content = output.Response.Extracted.Explanation
+		fileContent = output.Response.Extracted.Explanation
 	}
 
 	// Track if content was truncated
@@ -70,12 +80,13 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 			return nil, err
 		}
 		content = h.truncateContent(content, req.Options.MaxTokens)
+		fileContent = h.truncateContent(fileContent, req.Options.MaxTokens)
 		truncated = len(content) < originalLength
 	}
 
 	// If WriteTo is specified, write to file instead of returning content
 	if req.Options.WriteTo != "" {
-		if err := h.writeToFile(req.Options.WriteTo, content); err != nil {
+		if err := h.writeToFile(req.Options.WriteTo, fileContent); err != nil {
 			return nil, models.NewDelegateError(
 				models.ErrorTypeInternal,
 				"",
@@ -84,7 +95,7 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 		}
 		
 		// Calculate file size and tokens saved
-		fileSize := len(content)
+		fileSize := len(fileContent)
 		fileSizeKB := float64(fileSize) / 1024.0
 		tokensSaved := fileSize / 4 // Approximate: 1 token ≈ 4 characters
 		
@@ -162,6 +173,112 @@ func (h *ReadHandler) extractCodeContent(output *models.Output) string {
 	}
 
 	return strings.Join(parts, "\n")
+}
+
+// extractCodeForFile extracts code suitable for saving to a file
+func (h *ReadHandler) extractCodeForFile(output *models.Output, filePath string) string {
+	if len(output.Response.Extracted.Code) == 0 {
+		// No code blocks found, return raw response as fallback
+		return output.Response.Raw
+	}
+
+	// Detect if this is a source code file or documentation
+	if h.isDocumentationFile(filePath) {
+		// For documentation files, keep the fences
+		return h.extractCodeContent(output)
+	}
+
+	// For source code files, concatenate raw code content without fences
+	var parts []string
+	for _, block := range output.Response.Extracted.Code {
+		parts = append(parts, block.Content)
+	}
+
+	// Join blocks with single newline
+	result := strings.Join(parts, "\n")
+	
+	// Clean up any stray markdown artifacts
+	result = h.cleanupCodeArtifacts(result)
+	
+	return result
+}
+
+// isDocumentationFile checks if the file is a documentation file that should preserve markdown
+func (h *ReadHandler) isDocumentationFile(filePath string) bool {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	docExtensions := []string{
+		".md", ".markdown", ".rst", ".txt", ".adoc", ".asciidoc",
+		".textile", ".rdoc", ".org", ".creole", ".mediawiki",
+		".wiki", ".pod", ".rmd", ".mkd", ".mkdn", ".mdwn", ".mdown",
+	}
+	
+	for _, docExt := range docExtensions {
+		if ext == docExt {
+			return true
+		}
+	}
+	
+	// Also check for common documentation filenames
+	baseName := strings.ToLower(filepath.Base(filePath))
+	docNames := []string{"readme", "changelog", "history", "license", "notice", "authors", "contributors", "todo"}
+	for _, docName := range docNames {
+		if strings.HasPrefix(baseName, docName) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// cleanupCodeArtifacts removes common markdown artifacts from code
+func (h *ReadHandler) cleanupCodeArtifacts(content string) string {
+	// Remove leading/trailing backticks that might have slipped through
+	content = strings.TrimPrefix(content, "```")
+	content = strings.TrimSuffix(content, "```")
+	
+	// Remove language identifiers at the start
+	lines := strings.Split(content, "\n")
+	if len(lines) > 0 {
+		firstLine := strings.TrimSpace(lines[0])
+		// Common language identifiers that might appear
+		langs := []string{
+			"go", "golang", "python", "py", "python3", "javascript", "js", "typescript", "ts", 
+			"java", "cpp", "c++", "c", "csharp", "cs", "c#", "dart", "flutter", "rust", "rs",
+			"ruby", "rb", "php", "swift", "kotlin", "kt", "scala", "r", "R", "julia", "jl",
+			"bash", "sh", "shell", "zsh", "fish", "powershell", "ps1", "batch", "bat", "cmd",
+			"sql", "mysql", "postgresql", "sqlite", "yaml", "yml", "json", "xml", "html", 
+			"css", "scss", "sass", "less", "vue", "jsx", "tsx", "svelte", "elm", "purescript",
+			"haskell", "hs", "erlang", "erl", "elixir", "ex", "exs", "clojure", "clj", "cljs",
+			"lisp", "scheme", "racket", "ocaml", "ml", "fsharp", "fs", "nim", "zig", "v", "vlang",
+			"pascal", "delphi", "fortran", "f90", "cobol", "ada", "lua", "perl", "pl", "awk",
+			"matlab", "octave", "mathematica", "maple", "sage", "prolog", "smalltalk", "forth",
+			"assembly", "asm", "nasm", "masm", "gas", "llvm", "wasm", "webassembly",
+			"terraform", "tf", "dockerfile", "docker", "makefile", "make", "cmake", "gradle",
+			"maven", "ant", "bazel", "ninja", "meson", "scons", "rake", "gemfile", "cargo",
+			"toml", "ini", "conf", "config", "properties", "env", "dotenv", "gitignore",
+			"editorconfig", "eslintrc", "prettierrc", "babelrc", "webpack", "vite", "rollup",
+			"proto", "protobuf", "graphql", "gql", "solidity", "sol", "vyper", "vy",
+			"cuda", "cu", "opencl", "cl", "glsl", "hlsl", "metal", "msl", "wgsl",
+		}
+		
+		lowerFirst := strings.ToLower(firstLine)
+		for _, lang := range langs {
+			if lowerFirst == lang || lowerFirst == "```"+lang || firstLine == lang || firstLine == "```"+lang {
+				lines = lines[1:]
+				break
+			}
+		}
+	}
+	
+	// Also clean up any trailing ``` on its own line
+	if len(lines) > 0 {
+		lastIdx := len(lines) - 1
+		if strings.TrimSpace(lines[lastIdx]) == "```" {
+			lines = lines[:lastIdx]
+		}
+	}
+	
+	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
 
 // truncateContent truncates content to approximately maxTokens

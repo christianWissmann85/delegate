@@ -161,14 +161,28 @@ func (h *ReadHandler) extractCodeContent(output *models.Output) string {
 	}
 
 	var parts []string
-	for i, block := range output.Response.Extracted.Code {
-		// Format as fenced code block
-		fence := fmt.Sprintf("```%s\n%s\n```", block.Language, block.Content)
-		parts = append(parts, fence)
+	
+	// If code_only was used during generation, return raw code without fences
+	if output.Metadata.CodeOnly {
+		for i, block := range output.Response.Extracted.Code {
+			parts = append(parts, block.Content)
+			
+			// Add separator between blocks (except last)
+			if i < len(output.Response.Extracted.Code)-1 {
+				parts = append(parts, "")
+			}
+		}
+	} else {
+		// Normal behavior: add code fences
+		for i, block := range output.Response.Extracted.Code {
+			// Format as fenced code block
+			fence := fmt.Sprintf("```%s\n%s\n```", block.Language, block.Content)
+			parts = append(parts, fence)
 
-		// Add separator between blocks (except last)
-		if i < len(output.Response.Extracted.Code)-1 {
-			parts = append(parts, "")
+			// Add separator between blocks (except last)
+			if i < len(output.Response.Extracted.Code)-1 {
+				parts = append(parts, "")
+			}
 		}
 	}
 

@@ -39,4 +39,5 @@ type Metadata struct {
 	EstimatedTokens   int    `json:"estimated_tokens"`
 	ProviderRequestID string `json:"provider_request_id,omitempty"`
 	ProcessingTimeMs  int64  `json:"processing_time_ms"`
+	CodeOnly          bool   `json:"code_only,omitempty"`
 }

@@ -161,6 +161,7 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 		Metadata: models.Metadata{
 			TotalBytes:      int64(len(fullResponse)),
 			EstimatedTokens: EstimateTokens(fullResponse),
+			CodeOnly:        req.CodeOnly,
 		},
 	}
 

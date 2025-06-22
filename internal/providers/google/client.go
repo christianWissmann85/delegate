@@ -38,7 +38,14 @@ type apiKeyTransport struct {
 func (t *apiKeyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Clone the request to avoid modifying the original
 	newReq := req.Clone(req.Context())
+	
+	// Remove any existing authorization headers that might interfere
+	newReq.Header.Del("Authorization")
+	newReq.Header.Del("x-goog-api-client")
+	
+	// Set our API key header
 	newReq.Header.Set("x-goog-api-key", t.apiKey)
+	
 	return t.base.RoundTrip(newReq)
 }
 
@@ -76,10 +83,12 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 
 		// Create client with custom transport instead of API key
 		// This bypasses any ADC (Application Default Credentials) detection
+		// IMPORTANT: We explicitly set APIKey to empty string to prevent ADC fallback
 		client, err := genai.NewClient(ctx, &genai.ClientConfig{
 			Backend:    genai.BackendGeminiAPI,
 			HTTPClient: customHTTPClient,
-			// Don't set APIKey here since we're handling auth via headers
+			APIKey:     "", // Explicitly empty to prevent ADC fallback
+			// Authentication is handled via x-goog-api-key header in our custom transport
 		})
 		if err != nil {
 			ch <- handlers.StreamChunk{Error: fmt.Errorf("create gemini client with custom transport: %w", err)}
@@ -131,12 +140,29 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 		// Stream the responses
 		for result, err := range stream {
 			if err != nil {
+				// Check for authentication-related errors
+				errMsg := err.Error()
+				isAuthError := strings.Contains(errMsg, "API key") || 
+					strings.Contains(errMsg, "authentication") || 
+					strings.Contains(errMsg, "unauthorized") ||
+					strings.Contains(errMsg, "403") ||
+					strings.Contains(errMsg, "401")
+				
 				p.logger.Error("Stream error details", map[string]interface{}{
-					"error": err.Error(),
-					"type":  fmt.Sprintf("%T", err),
-					"model": modelName,
+					"error":        errMsg,
+					"type":         fmt.Sprintf("%T", err),
+					"model":        modelName,
+					"isAuthError":  isAuthError,
+					"apiKeyLen":    len(p.apiKey),
+					"apiKeyPrefix": p.apiKey[:10] + "...",
 				})
-				ch <- handlers.StreamChunk{Error: fmt.Errorf("stream error: %w", err)}
+				
+				// Add hint about potential ADC interference
+				if isAuthError {
+					ch <- handlers.StreamChunk{Error: fmt.Errorf("authentication error (check if ADC is overriding API key): %w", err)}
+				} else {
+					ch <- handlers.StreamChunk{Error: fmt.Errorf("stream error: %w", err)}
+				}
 				return
 			}
 

@@ -104,7 +104,7 @@ func TestExtractor_ExtractCode(t *testing.T) {
 			if !tt.skipDetailedCheck && len(got) != len(tt.expected) {
 				t.Fatalf("expected %d code blocks, got %d", len(tt.expected), len(got))
 			}
-			
+
 			if tt.skipDetailedCheck {
 				// Just check that we got some code blocks
 				if len(got) == 0 {
@@ -323,18 +323,18 @@ func TestExtractor_EdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ext := New()
-			
+
 			// Should not panic
 			_, err := ext.Extract(tt.content)
 			if err != nil {
 				t.Logf("Extract returned error (expected): %v", err)
 			}
-			
+
 			_, err = ext.ExtractCode(tt.content)
 			if err != nil {
 				t.Logf("ExtractCode returned error (expected): %v", err)
 			}
-			
+
 			_, err = ext.ExtractExplanation(tt.content)
 			if err != nil {
 				t.Logf("ExtractExplanation returned error (expected): %v", err)
@@ -380,7 +380,7 @@ func TestExtractorFactory(t *testing.T) {
 		if ext == nil {
 			t.Fatal("expected extractor, got nil")
 		}
-		
+
 		// Test that hint is used
 		blocks, _ := ext.ExtractCode("```\ncode\n```")
 		if len(blocks) > 0 && blocks[0].Language != "python" {

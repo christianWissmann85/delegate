@@ -15,8 +15,8 @@ type Output struct {
 
 // Response contains the LLM response
 type Response struct {
-	Raw       string     `json:"raw"`
-	Extracted Extracted  `json:"extracted"`
+	Raw       string    `json:"raw"`
+	Extracted Extracted `json:"extracted"`
 }
 
 // Extracted contains extracted code and explanation
@@ -35,8 +35,8 @@ type ExtractedCode struct {
 
 // Metadata contains output metadata
 type Metadata struct {
-	TotalBytes          int64  `json:"total_bytes"`
-	EstimatedTokens     int    `json:"estimated_tokens"`
-	ProviderRequestID   string `json:"provider_request_id,omitempty"`
-	ProcessingTimeMs    int64  `json:"processing_time_ms"`
+	TotalBytes        int64  `json:"total_bytes"`
+	EstimatedTokens   int    `json:"estimated_tokens"`
+	ProviderRequestID string `json:"provider_request_id,omitempty"`
+	ProcessingTimeMs  int64  `json:"processing_time_ms"`
 }

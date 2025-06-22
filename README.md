@@ -1,55 +1,127 @@
 # Delegate
 
-> The industrial-strength MCP server for delegating LLM tasks. Save Claude Code's context tokens. No fluff. Just works.
+> Transform Claude Code from a coder into a Team Lead. Delegate heavy lifting to other LLMs. Save 90%+ tokens. No fluff. Just works.
 
 ## What is Delegate?
 
-Delegate lets Claude Code save context tokens by delegating heavy tasks to other LLMs (Gemini & Claude). Generate code, analyze documents, process large files - anything that would eat up Claude Code's context. Three tools. Zero complexity.
+Delegate is an MCP server that transforms how Claude Code works. Instead of burning through context tokens on large file generation, Claude becomes a technical lead - orchestrating work while Gemini and other models do the heavy lifting. Generate entire codebases, analyze massive documents, process huge files - all while keeping Claude's context pristine for the important architectural decisions.
+
+**Think of it this way**: Why have Claude write 1000 lines of boilerplate when it can delegate that to Gemini and focus on the architecture?
 
 ## Installation
+
+### 🚀 Quick Install (Recommended)
+
+We provide an installer script that handles everything and teaches you about MCP:
 
 ```bash
 # Clone the repository
 git clone https://github.com/christianwissmann85/delegate.git
 cd delegate
 
-# Build the project
+# Run the installer (builds & installs system-wide)
+./update.sh
+```
+
+**What update.sh does:**
+- ✅ Builds the delegate binary
+- ✅ Installs it to `/usr/local/bin` (system-wide)
+- ✅ Shows you EXACTLY how to use MCP with any project
+- ✅ Contains extensive comments explaining MCP in detail
+- ✅ No more confusion about per-project setup!
+
+### Manual Installation
+
+```bash
+# Build manually
 go build -o delegate main.go
 
-# Add to Claude Code
-claude mcp add delegate -s project -- go run main.go
+# Add to a specific project
+cd /your/project
+claude mcp add delegate -s project -- /path/to/delegate
 ```
 
-That's it. You're ready to save tokens!
+## Using Delegate in Your Projects
 
-## Key Use Cases
+After running `update.sh`, here's how to use Delegate in ANY project:
 
-### 🚀 Code Generation
-```
-Use Delegate to generate a complete authentication system with Gemini
+```bash
+# 1. Go to your project
+cd /path/to/your/awesome-project
+
+# 2. Add Delegate to THIS project (one-time setup)
+claude mcp add delegate -s project -- delegate
+
+# 3. Start Claude Code
+claude
+
+# 4. Now Claude can delegate work!
 ```
 
-### 📚 Document Analysis
-```
-Use Delegate to analyze these 5 architecture documents and find all API patterns
+**Inside Claude Code:**
+```python
+# Generate entire files without consuming tokens
+delegate_invoke(model: "gemini-2.5-flash", prompt: "Create a complete REST API server with auth")
+delegate_read(output_id, options: {write_to: "server.go"})  # Saves directly - 0 tokens used!
+
+# Or let Claude review the output first
+delegate_invoke(model: "gemini-2.5-pro", prompt: "Create comprehensive test suite")
+delegate_check(output_id)  # See size without reading
+delegate_read(output_id, options: {extract: "code"})  # Read only what you need
 ```
 
-### 🔍 Large File Processing
-```
-Use Delegate to review this 10k line codebase and identify security issues
+## Why Delegate Makes Claude a Team Lead
+
+### Without Delegate (Claude as a Coder):
+- 🔥 Burns thousands of tokens writing boilerplate
+- 😓 Context fills up with generated code
+- 🐌 Slower responses as context grows
+- 💸 Higher costs from token usage
+
+### With Delegate (Claude as a Team Lead):
+- 🧠 Claude focuses on architecture & decisions
+- 🚀 Gemini handles the heavy lifting (2M context!)
+- 💾 Generated files saved directly (0 tokens!)
+- 🎯 Claude's context stays clean for important work
+- 💰 90%+ token savings on large generations
+
+## Real-World Example
+
+```python
+# Traditional approach: Claude writes everything (5000+ tokens)
+❌ "Write a complete user authentication system with JWT"
+
+# Delegate approach: Claude orchestrates, Gemini codes (500 tokens)
+✅ delegate_invoke(model: "gemini-2.5-flash", prompt: """
+   Create a complete user authentication system:
+   - JWT token generation and validation
+   - Password hashing with bcrypt
+   - User registration/login endpoints
+   - Middleware for protected routes
+   - Proper error handling
+   """)
+✅ delegate_read(output_id, options: {write_to: "auth/auth.go"})
 ```
 
 ## Quick Start
 
-1. Set your API keys:
+1. Install Delegate with our helpful script:
    ```bash
-   export GOOGLE_API_KEY="your-key"
-   export ANTHROPIC_API_KEY="your-key"
+   git clone https://github.com/christianwissmann85/delegate.git
+   cd delegate
+   ./update.sh  # Read the output - it explains EVERYTHING!
    ```
 
-2. Start Claude Code and delegate heavy tasks:
+2. Set your API keys:
+   ```bash
+   export GOOGLE_API_KEY="your-key"      # For Gemini
+   export ANTHROPIC_API_KEY="your-key"  # For Claude models
    ```
-   Use Delegate to analyze all documentation files and summarize the testing strategy
+
+3. In each project where you want to use Delegate:
+   ```bash
+   claude mcp add delegate -s project -- delegate
+   claude
    ```
 
 [Getting Started Guide →](docs/Getting%20Started%20Guide.md)

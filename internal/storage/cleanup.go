@@ -52,7 +52,7 @@ func (c *Cleaner) Start(ctx context.Context) {
 // cleanup removes old outputs
 func (c *Cleaner) cleanup() {
 	start := time.Now()
-	
+
 	ids, err := c.store.ListOlderThan(c.maxAge)
 	if err != nil {
 		c.logger.Error("Failed to list old outputs", map[string]interface{}{

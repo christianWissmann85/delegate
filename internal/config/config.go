@@ -84,14 +84,14 @@ func (c *Config) HasProvider() bool {
 // SupportedModels returns models available based on configured API keys
 func (c *Config) SupportedModels() []string {
 	var models []string
-	
+
 	if c.GoogleKey != "" {
 		models = append(models, "gemini-2.5-flash", "gemini-2.5-pro")
 	}
-	
+
 	if c.AnthropicKey != "" {
 		models = append(models, "claude-sonnet-4-20250514", "claude-opus-4-20250514")
 	}
-	
+
 	return models
 }

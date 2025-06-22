@@ -95,7 +95,7 @@ func TestConcurrentInvokeCalls(t *testing.T) {
 		uniqueIDs[id] = true
 	}
 
-	t.Logf("Completed %d concurrent invokes in %v (%.2f ops/sec)", 
+	t.Logf("Completed %d concurrent invokes in %v (%.2f ops/sec)",
 		numCalls, duration, float64(numCalls)/duration.Seconds())
 }
 
@@ -159,7 +159,7 @@ func TestConcurrentCheckCalls(t *testing.T) {
 		t.Errorf("Had %d errors out of %d concurrent calls", errorCount, numCalls)
 	}
 
-	t.Logf("Completed %d concurrent checks in %v (%.2f ops/sec)", 
+	t.Logf("Completed %d concurrent checks in %v (%.2f ops/sec)",
 		numCalls, duration, float64(numCalls)/duration.Seconds())
 }
 
@@ -231,7 +231,7 @@ func TestConcurrentReadCalls(t *testing.T) {
 		t.Errorf("Had %d errors out of %d concurrent calls", errorCount, numCalls)
 	}
 
-	t.Logf("Completed %d concurrent reads in %v (%.2f ops/sec)", 
+	t.Logf("Completed %d concurrent reads in %v (%.2f ops/sec)",
 		numCalls, duration, float64(numCalls)/duration.Seconds())
 }
 
@@ -246,11 +246,11 @@ func TestMixedConcurrentOperations(t *testing.T) {
 
 	extractFactory := extractor.NewFactory()
 	providerFactory := &mockProviderFactory{}
-	
+
 	invokeHandler := handlers.NewInvokeHandler(providerFactory, store, extractFactory)
 	checkHandler := handlers.NewCheckHandler(store)
 	readHandler := handlers.NewReadHandler(store)
-	
+
 	ctx := context.Background()
 
 	// Create some initial outputs
@@ -279,12 +279,12 @@ func TestMixedConcurrentOperations(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			
+
 			req := handlers.InvokeRequest{
 				Model:  "mock-test",
 				Prompt: fmt.Sprintf("Task %d", index),
 			}
-			
+
 			_, err := invokeHandler.Handle(ctx, req)
 			operations <- operation{"invoke", err}
 		}(i)
@@ -295,11 +295,11 @@ func TestMixedConcurrentOperations(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			
+
 			// Use one of the initial outputs
 			outputID := initialOutputs[index%len(initialOutputs)]
 			req := handlers.CheckRequest{OutputID: outputID}
-			
+
 			_, err := checkHandler.Handle(ctx, req)
 			operations <- operation{"check", err}
 		}(i)
@@ -310,14 +310,14 @@ func TestMixedConcurrentOperations(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			
+
 			// Use one of the initial outputs
 			outputID := initialOutputs[index%len(initialOutputs)]
 			req := handlers.ReadRequest{
 				OutputID: outputID,
 				Options:  handlers.ReadOptions{Extract: "all"},
 			}
-			
+
 			_, err := readHandler.Handle(ctx, req)
 			operations <- operation{"read", err}
 		}(i)
@@ -326,13 +326,13 @@ func TestMixedConcurrentOperations(t *testing.T) {
 	// Wait for all operations
 	wg.Wait()
 	close(operations)
-	
+
 	duration := time.Since(start)
 
 	// Count results
 	counts := make(map[string]int)
 	errors := make(map[string]int)
-	
+
 	for op := range operations {
 		counts[op.opType]++
 		if op.err != nil {
@@ -349,7 +349,7 @@ func TestMixedConcurrentOperations(t *testing.T) {
 		t.Logf("  %s: %d operations, %d errors (%.1f%% success rate)",
 			opType, count, errorCount, successRate)
 	}
-	
+
 	totalOps := 0
 	for _, count := range counts {
 		totalOps += count
@@ -360,12 +360,12 @@ func TestMixedConcurrentOperations(t *testing.T) {
 // Helper function to generate large content
 func generateLargeContent(size int) string {
 	content := "Here's a sample response with code:\n\n```python\ndef hello():\n    print('Hello, World!')\n```\n\n"
-	
+
 	// Repeat content to reach desired size
 	for len(content) < size {
 		content += "This is additional explanation text to fill up the content. "
 	}
-	
+
 	return content[:size]
 }
 
@@ -377,7 +377,7 @@ func BenchmarkInvokeHandler(b *testing.B) {
 	extractFactory := extractor.NewFactory()
 	providerFactory := &mockProviderFactory{}
 	handler := handlers.NewInvokeHandler(providerFactory, store, extractFactory)
-	
+
 	ctx := context.Background()
 	req := handlers.InvokeRequest{
 		Model:  "mock-test",
@@ -398,11 +398,11 @@ func BenchmarkCheckHandler(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
 	store, _ := storage.NewFileStore(tempDir)
-	
+
 	// Create test output
 	output := createTestOutput()
 	_ = store.Save(output)
-	
+
 	handler := handlers.NewCheckHandler(store)
 	ctx := context.Background()
 	req := handlers.CheckRequest{OutputID: output.ID}
@@ -421,12 +421,12 @@ func BenchmarkReadHandler(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
 	store, _ := storage.NewFileStore(tempDir)
-	
+
 	// Create test output with content
 	output := createTestOutput()
 	output.Response.Raw = generateLargeContent(5000)
 	_ = store.Save(output)
-	
+
 	handler := handlers.NewReadHandler(store)
 	ctx := context.Background()
 	req := handlers.ReadRequest{

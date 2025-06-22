@@ -31,11 +31,11 @@ func NewProvider(apiKey, model string) *Provider {
 func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequest) (<-chan handlers.StreamChunk, error) {
 	// Create output channel
 	ch := make(chan handlers.StreamChunk)
-	
+
 	// Start streaming in a goroutine
 	go func() {
 		defer close(ch)
-		
+
 		// Set timeout from request or use default
 		timeout := 60 * time.Second
 		if req.Timeout > 0 {
@@ -43,12 +43,12 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 		}
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
-		
+
 		// Create Anthropic client
 		client := anthropic.NewClient(
 			option.WithAPIKey(p.apiKey),
 		)
-		
+
 		// Build prompt with files
 		promptText := req.Prompt
 		if len(req.Files) > 0 {
@@ -60,7 +60,7 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 			}
 			promptText = handlers.BuildPromptWithFiles(promptText, fileContents)
 		}
-		
+
 		// Configure message parameters
 		params := anthropic.MessageNewParams{
 			Model:     anthropic.Model(p.model),
@@ -69,19 +69,19 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 				anthropic.NewUserMessage(anthropic.NewTextBlock(promptText)),
 			},
 		}
-		
+
 		// Override max tokens if specified
 		if req.MaxTokens > 0 {
 			params.MaxTokens = int64(req.MaxTokens)
 		}
-		
+
 		// Create streaming request
 		stream := client.Messages.NewStreaming(ctx, params)
-		
+
 		// Process stream events
 		for stream.Next() {
 			event := stream.Current()
-			
+
 			switch eventVariant := event.AsAny().(type) {
 			case anthropic.ContentBlockDeltaEvent:
 				switch deltaVariant := eventVariant.Delta.AsAny().(type) {
@@ -95,14 +95,13 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 				})
 			}
 		}
-		
+
 		// Check for stream error
 		if err := stream.Err(); err != nil {
 			ch <- handlers.StreamChunk{Error: fmt.Errorf("stream error: %w", err)}
 			return
 		}
 	}()
-	
+
 	return ch, nil
 }
-

@@ -18,18 +18,18 @@ type Tool interface {
 
 // JSONSchema represents a JSON Schema for tool parameters
 type JSONSchema struct {
-	Type       string                 `json:"type"`
-	Properties map[string]Property    `json:"properties"`
-	Required   []string               `json:"required,omitempty"`
+	Type       string              `json:"type"`
+	Properties map[string]Property `json:"properties"`
+	Required   []string            `json:"required,omitempty"`
 }
 
 // Property represents a JSON Schema property
 type Property struct {
-	Type        string               `json:"type"`
-	Description string               `json:"description"`
-	Enum        []string             `json:"enum,omitempty"`
-	Items       *Property            `json:"items,omitempty"`
-	Properties  map[string]Property  `json:"properties,omitempty"`
+	Type        string              `json:"type"`
+	Description string              `json:"description"`
+	Enum        []string            `json:"enum,omitempty"`
+	Items       *Property           `json:"items,omitempty"`
+	Properties  map[string]Property `json:"properties,omitempty"`
 }
 
 // InvokeTool wraps the invoke handler as an MCP tool

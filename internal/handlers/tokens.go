@@ -14,7 +14,7 @@ func EstimateTokens(text string) int {
 
 	// More sophisticated estimation based on common tokenization patterns
 	// Most LLMs use subword tokenization (like BPE)
-	
+
 	// Count words first
 	words := 0
 	inWord := false
@@ -29,14 +29,14 @@ func EstimateTokens(text string) int {
 
 	// Count special tokens (code blocks, punctuation clusters)
 	specialTokens := 0
-	
+
 	// Code fences are usually 2-3 tokens each
 	specialTokens += strings.Count(text, "```") * 2
-	
+
 	// URLs tend to be multiple tokens
 	specialTokens += strings.Count(text, "http://") * 3
 	specialTokens += strings.Count(text, "https://") * 3
-	
+
 	// Common multi-character operators in code
 	codeOperators := []string{"==", "!=", "<=", ">=", "&&", "||", "++", "--", "->", "=>", ":="}
 	for _, op := range codeOperators {
@@ -49,18 +49,18 @@ func EstimateTokens(text string) int {
 
 	// Use the higher of word-based or character-based estimate
 	wordBasedEstimate := words + specialTokens
-	
+
 	// For code-heavy content, lean toward character-based
 	// For natural language, lean toward word-based
-	codeIndicators := strings.Count(text, "{") + strings.Count(text, "}") + 
-	                  strings.Count(text, "(") + strings.Count(text, ")") +
-	                  strings.Count(text, ";")
-	
+	codeIndicators := strings.Count(text, "{") + strings.Count(text, "}") +
+		strings.Count(text, "(") + strings.Count(text, ")") +
+		strings.Count(text, ";")
+
 	if codeIndicators > words/10 { // More than 10% code indicators
 		// Likely code-heavy, use weighted average favoring characters
 		return (charBasedEstimate*2 + wordBasedEstimate) / 3
 	}
-	
+
 	// Likely natural language, use weighted average favoring words
 	return (wordBasedEstimate*2 + charBasedEstimate) / 3
 }
@@ -70,13 +70,13 @@ func EstimateTokens(text string) int {
 func EstimateTokensForJSON(text string) int {
 	// JSON has additional overhead from quotes, braces, etc.
 	baseEstimate := EstimateTokens(text)
-	
+
 	// Count structural elements that add tokens
-	structureTokens := strings.Count(text, "\"") / 2 + // Each key/value pair
-	                   strings.Count(text, ":") +      // Colons
-	                   strings.Count(text, ",") +      // Commas
-	                   strings.Count(text, "{") +      // Object starts
-	                   strings.Count(text, "}")        // Object ends
-	
+	structureTokens := strings.Count(text, "\"")/2 + // Each key/value pair
+		strings.Count(text, ":") + // Colons
+		strings.Count(text, ",") + // Commas
+		strings.Count(text, "{") + // Object starts
+		strings.Count(text, "}") // Object ends
+
 	return baseEstimate + structureTokens/2 // Structural elements often combine into single tokens
 }

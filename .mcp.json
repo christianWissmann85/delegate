@@ -2,11 +2,8 @@
   "mcpServers": {
     "delegate": {
       "type": "stdio",
-      "command": "go",
-      "args": [
-        "run",
-        "main.go"
-      ],
+      "command": "delegate",
+      "args": [],
       "env": {}
     }
   }

@@ -35,9 +35,9 @@ func NewProtocol(server *Server, logLevel logger.Level) *Protocol {
 // HandleMessages processes incoming JSON-RPC messages
 func (p *Protocol) HandleMessages(ctx context.Context) error {
 	p.logger.Info("MCP server started, waiting for messages")
-	
+
 	scanner := bufio.NewScanner(p.reader)
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -46,12 +46,12 @@ func (p *Protocol) HandleMessages(ctx context.Context) error {
 			// Check if there's input available
 			if scanner.Scan() {
 				line := scanner.Text()
-				
+
 				// Skip empty lines
 				if strings.TrimSpace(line) == "" {
 					continue
 				}
-				
+
 				// Parse and handle message
 				if err := p.handleMessage([]byte(line)); err != nil {
 					p.logger.Error("Error handling message", map[string]interface{}{
@@ -153,14 +153,14 @@ func (p *Protocol) handleToolsList(id interface{}) error {
 			InputSchema: tool.Schema(),
 		})
 	}
-	
+
 	// Wrap the tools array in an object with a "tools" field
 	response := struct {
 		Tools []ToolInfo `json:"tools"`
 	}{
 		Tools: tools,
 	}
-	
+
 	return p.sendResponse(id, response)
 }
 
@@ -194,10 +194,10 @@ func (p *Protocol) handleToolCall(id interface{}, params json.RawMessage) error 
 				Code:    p.mapErrorTypeToCode(delegateErr.Type),
 				Message: delegateErr.Message,
 				Data: map[string]interface{}{
-					"error":               delegateErr.Type,
-					"provider":            delegateErr.Provider,
-					"retry_after":         delegateErr.RetryAfter,
-					"alternative_models":  delegateErr.Alternatives,
+					"error":              delegateErr.Type,
+					"provider":           delegateErr.Provider,
+					"retry_after":        delegateErr.RetryAfter,
+					"alternative_models": delegateErr.Alternatives,
 				},
 			})
 		} else {
@@ -254,7 +254,7 @@ func (p *Protocol) sendError(id interface{}, err *Error) error {
 // wrapToolResult wraps tool handler results in MCP content array format
 func (p *Protocol) wrapToolResult(toolName string, result interface{}) map[string]interface{} {
 	var message string
-	
+
 	switch toolName {
 	case "delegate_invoke":
 		if invokeResp, ok := result.(*handlers.InvokeResponse); ok {
@@ -262,7 +262,7 @@ func (p *Protocol) wrapToolResult(toolName string, result interface{}) map[strin
 		}
 	case "delegate_check":
 		if checkResp, ok := result.(*handlers.CheckResponse); ok {
-			message = fmt.Sprintf("Output %s: %d bytes, ~%d tokens, created at %s", 
+			message = fmt.Sprintf("Output %s: %d bytes, ~%d tokens, created at %s",
 				checkResp.ID, checkResp.FileSizeBytes, checkResp.EstimatedTokens, checkResp.CreatedAt)
 		}
 	case "delegate_read":
@@ -278,7 +278,7 @@ func (p *Protocol) wrapToolResult(toolName string, result interface{}) map[strin
 			message = "Operation completed successfully"
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"content": []map[string]interface{}{
 			{

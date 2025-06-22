@@ -61,7 +61,7 @@ func (e *Extractor) ExtractCodeOnly(content string) ([]handlers.CodeBlock, error
 	if strings.TrimSpace(content) == "" {
 		return []handlers.CodeBlock{}, nil
 	}
-	
+
 	return e.ExtractCode(content)
 }
 
@@ -69,7 +69,7 @@ func (e *Extractor) ExtractCodeOnly(content string) ([]handlers.CodeBlock, error
 func (e *Extractor) ExtractCode(content string) ([]handlers.CodeBlock, error) {
 	var blocks []handlers.CodeBlock
 	usedRanges := make(map[string]bool)
-	
+
 	// Process patterns in priority order
 	for _, pattern := range e.patterns {
 		switch pattern.Name {
@@ -84,46 +84,46 @@ func (e *Extractor) ExtractCode(content string) ([]handlers.CodeBlock, error) {
 			}
 		}
 	}
-	
+
 	return blocks, nil
 }
 
 // extractFencedBlocks extracts fenced code blocks (``` or ~~~)
 func (e *Extractor) extractFencedBlocks(content string, pattern Pattern, usedRanges map[string]bool) []handlers.CodeBlock {
 	var blocks []handlers.CodeBlock
-	
+
 	matches := pattern.Regex.FindAllStringSubmatch(content, -1)
 	indices := pattern.Regex.FindAllStringIndex(content, -1)
-	
+
 	for i, match := range matches {
 		if len(match) < 3 || len(indices) <= i {
 			continue
 		}
-		
+
 		start, end := indices[i][0], indices[i][1]
 		rangeKey := fmt.Sprintf("%d-%d", start, end)
-		
+
 		// Skip if overlaps with existing block
 		if e.overlapsWithUsedRange(start, end, usedRanges) {
 			continue
 		}
 		usedRanges[rangeKey] = true
-		
+
 		// Extract and normalize language
 		lang := NormalizeLanguage(match[1])
 		code := strings.TrimRight(match[2], "\n") // Trim trailing newline from code
-		
+
 		// If no language specified, try to detect it
 		if lang == "plaintext" && e.languageHint != "" {
 			lang = NormalizeLanguage(e.languageHint)
 		} else if lang == "plaintext" {
 			lang = e.detectLanguage(code)
 		}
-		
+
 		// Calculate line numbers
 		linesBefore := countLines(content[:start])
 		linesInBlock := countLines(code)
-		
+
 		blocks = append(blocks, handlers.CodeBlock{
 			Language:  lang,
 			Content:   code,
@@ -131,47 +131,47 @@ func (e *Extractor) extractFencedBlocks(content string, pattern Pattern, usedRan
 			LineEnd:   linesBefore + linesInBlock,
 		})
 	}
-	
+
 	return blocks
 }
 
 // extractHTMLBlocks extracts HTML <code> blocks
 func (e *Extractor) extractHTMLBlocks(content string, pattern Pattern, usedRanges map[string]bool) []handlers.CodeBlock {
 	var blocks []handlers.CodeBlock
-	
+
 	matches := pattern.Regex.FindAllStringSubmatch(content, -1)
 	indices := pattern.Regex.FindAllStringIndex(content, -1)
-	
+
 	for i, match := range matches {
 		if len(match) < 3 || len(indices) <= i {
 			continue
 		}
-		
+
 		start, end := indices[i][0], indices[i][1]
 		rangeKey := fmt.Sprintf("%d-%d", start, end)
-		
+
 		if e.overlapsWithUsedRange(start, end, usedRanges) {
 			continue
 		}
 		usedRanges[rangeKey] = true
-		
+
 		// Extract language from class attribute if present
 		lang := "plaintext"
 		if match[1] != "" {
 			lang = NormalizeLanguage(match[1])
 		}
 		code := strings.TrimRight(match[2], "\n")
-		
+
 		// If no language specified, try to detect it
 		if lang == "plaintext" && e.languageHint != "" {
 			lang = NormalizeLanguage(e.languageHint)
 		} else if lang == "plaintext" {
 			lang = e.detectLanguage(code)
 		}
-		
+
 		linesBefore := countLines(content[:start])
 		linesInBlock := countLines(code)
-		
+
 		blocks = append(blocks, handlers.CodeBlock{
 			Language:  lang,
 			Content:   code,
@@ -179,36 +179,36 @@ func (e *Extractor) extractHTMLBlocks(content string, pattern Pattern, usedRange
 			LineEnd:   linesBefore + linesInBlock,
 		})
 	}
-	
+
 	return blocks
 }
 
 // extractIndentedBlocks extracts indented code blocks
 func (e *Extractor) extractIndentedBlocks(content string, pattern Pattern, usedRanges map[string]bool) []handlers.CodeBlock {
 	var blocks []handlers.CodeBlock
-	
+
 	matches := pattern.Regex.FindAllString(content, -1)
 	indices := pattern.Regex.FindAllStringIndex(content, -1)
-	
+
 	for i, match := range matches {
 		if len(indices) <= i {
 			continue
 		}
-		
+
 		start, end := indices[i][0], indices[i][1]
 		rangeKey := fmt.Sprintf("%d-%d", start, end)
-		
+
 		if e.overlapsWithUsedRange(start, end, usedRanges) {
 			continue
 		}
 		usedRanges[rangeKey] = true
-		
+
 		// Remove common indentation
 		code := e.removeCommonIndentation(match)
-		
+
 		linesBefore := countLines(content[:start])
 		linesInBlock := countLines(code)
-		
+
 		// Try to detect language for indented blocks
 		var lang string
 		if e.languageHint != "" {
@@ -216,7 +216,7 @@ func (e *Extractor) extractIndentedBlocks(content string, pattern Pattern, usedR
 		} else {
 			lang = e.detectLanguage(code)
 		}
-		
+
 		blocks = append(blocks, handlers.CodeBlock{
 			Language:  lang,
 			Content:   code,
@@ -224,7 +224,7 @@ func (e *Extractor) extractIndentedBlocks(content string, pattern Pattern, usedR
 			LineEnd:   linesBefore + linesInBlock,
 		})
 	}
-	
+
 	return blocks
 }
 
@@ -235,7 +235,7 @@ func (e *Extractor) overlapsWithUsedRange(start, end int, usedRanges map[string]
 		if _, err := fmt.Sscanf(rangeKey, "%d-%d", &usedStart, &usedEnd); err != nil {
 			continue
 		}
-		
+
 		// Check for overlap
 		if start < usedEnd && end > usedStart {
 			return true
@@ -250,7 +250,7 @@ func (e *Extractor) removeCommonIndentation(text string) string {
 	if len(lines) == 0 {
 		return text
 	}
-	
+
 	// Find minimum indentation
 	minIndent := -1
 	for _, line := range lines {
@@ -262,18 +262,18 @@ func (e *Extractor) removeCommonIndentation(text string) string {
 			minIndent = indent
 		}
 	}
-	
+
 	if minIndent <= 0 {
 		return text
 	}
-	
+
 	// Remove common indentation
 	for i, line := range lines {
 		if len(line) >= minIndent {
 			lines[i] = line[minIndent:]
 		}
 	}
-	
+
 	return strings.Join(lines, "\n")
 }
 
@@ -295,18 +295,18 @@ func (e *Extractor) ExtractExplanation(content string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("extract code blocks: %w", err)
 	}
-	
+
 	// If no code blocks, return the entire content as explanation
 	if len(codeBlocks) == 0 {
 		return strings.TrimSpace(content), nil
 	}
-	
+
 	// Build a list of ranges to exclude
 	type exclusion struct {
 		start, end int
 	}
 	var exclusions []exclusion
-	
+
 	// Find positions of all code blocks in original content
 	for _, pattern := range e.patterns {
 		if pattern.Name == "FencedCodeBlock" || pattern.Name == "AltFencedBlock" || pattern.Name == "HTMLCodeBlock" {
@@ -316,9 +316,9 @@ func (e *Extractor) ExtractExplanation(content string) (string, error) {
 			}
 		}
 	}
-	
+
 	// Don't exclude inline code from explanations - we want to keep them
-	
+
 	// Sort exclusions by start position
 	for i := 0; i < len(exclusions); i++ {
 		for j := i + 1; j < len(exclusions); j++ {
@@ -327,11 +327,11 @@ func (e *Extractor) ExtractExplanation(content string) (string, error) {
 			}
 		}
 	}
-	
+
 	// Build explanation by taking non-excluded parts
 	var explanationParts []string
 	lastEnd := 0
-	
+
 	for _, excl := range exclusions {
 		if excl.start > lastEnd {
 			part := content[lastEnd:excl.start]
@@ -342,7 +342,7 @@ func (e *Extractor) ExtractExplanation(content string) (string, error) {
 		}
 		lastEnd = excl.end
 	}
-	
+
 	// Add any remaining content after the last exclusion
 	if lastEnd < len(content) {
 		part := content[lastEnd:]
@@ -351,13 +351,13 @@ func (e *Extractor) ExtractExplanation(content string) (string, error) {
 			explanationParts = append(explanationParts, part)
 		}
 	}
-	
+
 	// Join parts with proper spacing
 	explanation := strings.Join(explanationParts, "\n\n")
-	
+
 	// Clean up extra newlines
 	explanation = cleanupNewlines(explanation)
-	
+
 	return strings.TrimSpace(explanation), nil
 }
 
@@ -403,14 +403,14 @@ func (e *Extractor) detectLanguage(code string) string {
 		{"dockerfile", regexp.MustCompile(`(?m)(^FROM |^RUN |^CMD |^EXPOSE |^ENV |^WORKDIR )`)},
 		{"terraform", regexp.MustCompile(`(?m)(^resource "|^provider "|^variable "|^output "|^module ")`)},
 	}
-	
+
 	// Check each pattern
 	for _, p := range patterns {
 		if p.pattern.MatchString(code) {
 			return p.lang
 		}
 	}
-	
+
 	// Check for shebang
 	if strings.HasPrefix(strings.TrimSpace(code), "#!") {
 		firstLine := strings.Split(code, "\n")[0]
@@ -424,6 +424,6 @@ func (e *Extractor) detectLanguage(code string) string {
 			return "bash"
 		}
 	}
-	
+
 	return "plaintext"
 }

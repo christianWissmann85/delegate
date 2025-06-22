@@ -13,7 +13,7 @@ type Provider interface {
 
 // ProviderCapabilities describes what a provider can do
 type ProviderCapabilities struct {
-	MaxTokens      int
-	SupportsFiles  bool
+	MaxTokens        int
+	SupportsFiles    bool
 	StreamingSupport bool
 }

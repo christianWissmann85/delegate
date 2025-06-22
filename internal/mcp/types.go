@@ -52,7 +52,7 @@ type Capabilities struct {
 }
 
 // ToolsCapability indicates tool support
-type ToolsCapability struct {}
+type ToolsCapability struct{}
 
 // ServerInfo contains server information
 type ServerInfo struct {

@@ -11,10 +11,10 @@ import (
 func NormalizeError(provider string, err error, statusCode int) *models.DelegateError {
 	errMsg := err.Error()
 	errLower := strings.ToLower(errMsg)
-	
+
 	// Determine error type based on status code and message
 	errorType := determineErrorType(statusCode, errLower)
-	
+
 	// Create base error
 	delegateErr := &models.DelegateError{
 		Type:     errorType,
@@ -22,21 +22,21 @@ func NormalizeError(provider string, err error, statusCode int) *models.Delegate
 		Code:     statusCode,
 		Message:  errMsg,
 	}
-	
+
 	// Add retry_after for rate limits
 	if errorType == models.ErrorTypeRateLimited {
 		// Default to 60 seconds if not specified
 		delegateErr.RetryAfter = 60
-		
+
 		// Try to extract retry_after from error message
 		// TODO: Add provider-specific parsing for retry_after values when needed
 	}
-	
+
 	// Suggest alternatives for certain errors
 	if errorType == models.ErrorTypeRateLimited || errorType == models.ErrorTypeProviderUnavailable {
 		delegateErr.Alternatives = suggestAlternatives(provider)
 	}
-	
+
 	return delegateErr
 }
 
@@ -55,7 +55,7 @@ func determineErrorType(statusCode int, errMsg string) string {
 	case http.StatusRequestTimeout:
 		return models.ErrorTypeTimeout
 	}
-	
+
 	// Check error message patterns
 	switch {
 	case strings.Contains(errMsg, "rate limit"):
@@ -98,10 +98,10 @@ func suggestAlternatives(failedProvider string) []string {
 // IsRetryable determines if an error should be retried
 func IsRetryable(err *models.DelegateError) bool {
 	switch err.Type {
-	case models.ErrorTypeRateLimited, 
-	     models.ErrorTypeProviderUnavailable, 
-	     models.ErrorTypeTimeout,
-	     models.ErrorTypeNetworkError:
+	case models.ErrorTypeRateLimited,
+		models.ErrorTypeProviderUnavailable,
+		models.ErrorTypeTimeout,
+		models.ErrorTypeNetworkError:
 		return true
 	default:
 		return false

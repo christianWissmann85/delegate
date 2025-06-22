@@ -271,9 +271,9 @@ func createTestOutput() *models.Output {
 			},
 		},
 		Metadata: models.Metadata{
-			TotalBytes:         100,
-			EstimatedTokens:    25,
-			ProcessingTimeMs:   50,
+			TotalBytes:       100,
+			EstimatedTokens:  25,
+			ProcessingTimeMs: 50,
 		},
 	}
 }
@@ -312,7 +312,7 @@ func TestTokenEstimation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tokens := handlers.EstimateTokens(tt.text)
 			ratio := float64(len(tt.text)) / float64(tokens)
-			
+
 			if ratio < tt.minRatio || ratio > tt.maxRatio {
 				t.Errorf("Token estimation out of expected range. Text: %d chars, Tokens: %d, Ratio: %.2f (expected %.1f-%.1f)",
 					len(tt.text), tokens, ratio, tt.minRatio, tt.maxRatio)

@@ -134,13 +134,13 @@ func BuildPromptWithFiles(prompt string, files []FileContent) string {
 	for _, file := range files {
 		// Get just the filename for display
 		filename := filepath.Base(file.Path)
-		
+
 		// Detect file type for better formatting
 		ext := strings.ToLower(filepath.Ext(filename))
-		
+
 		// Add file content with appropriate formatting
 		builder.WriteString(fmt.Sprintf("\n\n--- File: %s ---\n", filename))
-		
+
 		// For code files, wrap in code blocks
 		if isCodeFile(ext) {
 			lang := getLanguageFromExt(ext)

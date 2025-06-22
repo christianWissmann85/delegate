@@ -15,7 +15,7 @@ import (
 func main() {
 	// Load .env file if it exists
 	_ = godotenv.Load()
-	
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -28,7 +28,7 @@ func main() {
 
 	// Create logger with configured level
 	log := logger.New("main", logger.ParseLevel(cfg.LogLevel))
-	
+
 	// Create MCP server
 	server := mcp.NewServer(cfg)
 
@@ -49,7 +49,7 @@ func main() {
 	log.Info("Starting Delegate", map[string]interface{}{
 		"pid": os.Getpid(),
 	})
-	
+
 	if err := server.Start(ctx); err != nil {
 		log.Fatal("Server error", map[string]interface{}{
 			"error": err.Error(),

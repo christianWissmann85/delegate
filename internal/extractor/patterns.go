@@ -74,10 +74,10 @@ func NormalizeLanguage(lang string) string {
 	if trimmed == "" {
 		return "plaintext"
 	}
-	
+
 	langLower := strings.ToLower(trimmed)
 	hints := GetLanguageHints()
-	
+
 	for standard, variants := range hints {
 		for _, variant := range variants {
 			if langLower == variant {
@@ -85,15 +85,15 @@ func NormalizeLanguage(lang string) string {
 			}
 		}
 	}
-	
+
 	// If not found in hints, return the original but cleaned
 	return langLower
 }
 
 // MatchResult contains information about a pattern match
 type MatchResult struct {
-	Language  string
-	Content   string
-	StartPos  int
-	EndPos    int
+	Language string
+	Content  string
+	StartPos int
+	EndPos   int
 }

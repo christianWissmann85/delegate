@@ -8,9 +8,9 @@ type ExtractionOptions struct {
 
 // ExtractionStats provides statistics about extraction
 type ExtractionStats struct {
-	TotalBlocks     int
-	ExtractedBlocks int
-	TotalLines      int
-	CodeLines       int
+	TotalBlocks      int
+	ExtractedBlocks  int
+	TotalLines       int
+	CodeLines        int
 	ExplanationLines int
 }

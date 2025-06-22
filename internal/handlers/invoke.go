@@ -119,7 +119,7 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 
 	// Create extractor with language hint if provided
 	extractor := h.extractorFactory.Create(req.LanguageHint)
-	
+
 	// Extract based on mode
 	var extraction *Extraction
 	if req.CodeOnly {
@@ -222,7 +222,6 @@ func (h *InvokeHandler) validateRequest(req InvokeRequest) error {
 
 	return nil
 }
-
 
 // InvokeRequest represents the invoke tool parameters
 type InvokeRequest struct {

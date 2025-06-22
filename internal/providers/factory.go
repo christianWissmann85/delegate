@@ -27,7 +27,7 @@ func NewFactory(cfg *config.Config) *Factory {
 func (f *Factory) GetProvider(model string) (handlers.Provider, error) {
 	var provider handlers.Provider
 	var providerName string
-	
+
 	// Support mock providers for testing
 	if strings.HasPrefix(model, "mock-") {
 		provider = mock.NewProvider(model)
@@ -44,7 +44,7 @@ func (f *Factory) GetProvider(model string) (handlers.Provider, error) {
 			return nil, fmt.Errorf("unsupported model: %s", model)
 		}
 	}
-	
+
 	// Wrap all providers with retry logic
 	return NewRetryableProvider(provider, providerName), nil
 }

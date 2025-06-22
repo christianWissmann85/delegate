@@ -24,7 +24,7 @@ type Server struct {
 // NewServer creates a new MCP server
 func NewServer(cfg *config.Config) *Server {
 	logLevel := logger.ParseLevel(cfg.LogLevel)
-	
+
 	s := &Server{
 		config: cfg,
 		tools:  make(map[string]Tool),
@@ -52,14 +52,14 @@ func (s *Server) Start(ctx context.Context) error {
 		"output_dir":       s.config.OutputDir,
 		"timeout_seconds":  s.config.TimeoutSeconds,
 	})
-	
+
 	// Start cleanup routine
 	if store, ok := s.storage.(*storage.FileStore); ok {
 		interval, maxAge := storage.DefaultCleanupConfig()
 		cleaner := storage.NewCleaner(store, interval, maxAge)
 		go cleaner.Start(ctx)
 	}
-	
+
 	// Start protocol handler
 	return s.protocol.HandleMessages(ctx)
 }

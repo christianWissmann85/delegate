@@ -52,7 +52,7 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 	// Extract requested content
 	var content string
 	var fileContent string // Content specifically prepared for file writing
-	
+
 	switch req.Options.Extract {
 	case "all":
 		content = output.Response.Raw
@@ -73,7 +73,7 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 	// Track if content was truncated
 	truncated := false
 	originalLength := len(content)
-	
+
 	// Validate and apply token limit if specified
 	if req.Options.MaxTokens > 0 {
 		if err := ValidateMaxTokens(req.Options.MaxTokens); err != nil {
@@ -93,12 +93,12 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 				fmt.Sprintf("failed to write to file: %v", err),
 			)
 		}
-		
+
 		// Calculate file size and tokens saved
 		fileSize := len(fileContent)
 		fileSizeKB := float64(fileSize) / 1024.0
 		tokensSaved := fileSize / 4 // Approximate: 1 token ≈ 4 characters
-		
+
 		// Format file size nicely
 		var sizeStr string
 		if fileSizeKB < 1 {
@@ -108,7 +108,7 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 		} else {
 			sizeStr = fmt.Sprintf("%.1f MB", fileSizeKB/1024.0)
 		}
-		
+
 		// Return success message with size and tokens saved
 		return &ReadResponse{
 			Content:     fmt.Sprintf("Content written to %s (%s, ~%d tokens saved)", req.Options.WriteTo, sizeStr, tokensSaved),
@@ -139,9 +139,9 @@ type ReadRequest struct {
 
 // ReadOptions configures what to read
 type ReadOptions struct {
-	Extract   string `json:"extract,omitempty"`   // "all", "code", "explanation"
+	Extract   string `json:"extract,omitempty"`    // "all", "code", "explanation"
 	MaxTokens int    `json:"max_tokens,omitempty"` // Limit response size
-	WriteTo   string `json:"write_to,omitempty"`  // Write content to file instead of returning
+	WriteTo   string `json:"write_to,omitempty"`   // Write content to file instead of returning
 }
 
 // ReadResponse represents the read tool response
@@ -165,7 +165,7 @@ func (h *ReadHandler) extractCodeContent(output *models.Output) string {
 		// Format as fenced code block
 		fence := fmt.Sprintf("```%s\n%s\n```", block.Language, block.Content)
 		parts = append(parts, fence)
-		
+
 		// Add separator between blocks (except last)
 		if i < len(output.Response.Extracted.Code)-1 {
 			parts = append(parts, "")
@@ -196,10 +196,10 @@ func (h *ReadHandler) extractCodeForFile(output *models.Output, filePath string)
 
 	// Join blocks with single newline
 	result := strings.Join(parts, "\n")
-	
+
 	// Clean up any stray markdown artifacts
 	result = h.cleanupCodeArtifacts(result)
-	
+
 	return result
 }
 
@@ -211,13 +211,13 @@ func (h *ReadHandler) isDocumentationFile(filePath string) bool {
 		".textile", ".rdoc", ".org", ".creole", ".mediawiki",
 		".wiki", ".pod", ".rmd", ".mkd", ".mkdn", ".mdwn", ".mdown",
 	}
-	
+
 	for _, docExt := range docExtensions {
 		if ext == docExt {
 			return true
 		}
 	}
-	
+
 	// Also check for common documentation filenames
 	baseName := strings.ToLower(filepath.Base(filePath))
 	docNames := []string{"readme", "changelog", "history", "license", "notice", "authors", "contributors", "todo"}
@@ -226,7 +226,7 @@ func (h *ReadHandler) isDocumentationFile(filePath string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -235,18 +235,18 @@ func (h *ReadHandler) cleanupCodeArtifacts(content string) string {
 	// Remove leading/trailing backticks that might have slipped through
 	content = strings.TrimPrefix(content, "```")
 	content = strings.TrimSuffix(content, "```")
-	
+
 	// Remove language identifiers at the start
 	lines := strings.Split(content, "\n")
 	if len(lines) > 0 {
 		firstLine := strings.TrimSpace(lines[0])
 		// Common language identifiers that might appear
 		langs := []string{
-			"go", "golang", "python", "py", "python3", "javascript", "js", "typescript", "ts", 
+			"go", "golang", "python", "py", "python3", "javascript", "js", "typescript", "ts",
 			"java", "cpp", "c++", "c", "csharp", "cs", "c#", "dart", "flutter", "rust", "rs",
 			"ruby", "rb", "php", "swift", "kotlin", "kt", "scala", "r", "R", "julia", "jl",
 			"bash", "sh", "shell", "zsh", "fish", "powershell", "ps1", "batch", "bat", "cmd",
-			"sql", "mysql", "postgresql", "sqlite", "yaml", "yml", "json", "xml", "html", 
+			"sql", "mysql", "postgresql", "sqlite", "yaml", "yml", "json", "xml", "html",
 			"css", "scss", "sass", "less", "vue", "jsx", "tsx", "svelte", "elm", "purescript",
 			"haskell", "hs", "erlang", "erl", "elixir", "ex", "exs", "clojure", "clj", "cljs",
 			"lisp", "scheme", "racket", "ocaml", "ml", "fsharp", "fs", "nim", "zig", "v", "vlang",
@@ -260,7 +260,7 @@ func (h *ReadHandler) cleanupCodeArtifacts(content string) string {
 			"proto", "protobuf", "graphql", "gql", "solidity", "sol", "vyper", "vy",
 			"cuda", "cu", "opencl", "cl", "glsl", "hlsl", "metal", "msl", "wgsl",
 		}
-		
+
 		lowerFirst := strings.ToLower(firstLine)
 		for _, lang := range langs {
 			if lowerFirst == lang || lowerFirst == "```"+lang || firstLine == lang || firstLine == "```"+lang {
@@ -269,7 +269,7 @@ func (h *ReadHandler) cleanupCodeArtifacts(content string) string {
 			}
 		}
 	}
-	
+
 	// Also clean up any trailing ``` on its own line
 	if len(lines) > 0 {
 		lastIdx := len(lines) - 1
@@ -277,7 +277,7 @@ func (h *ReadHandler) cleanupCodeArtifacts(content string) string {
 			lines = lines[:lastIdx]
 		}
 	}
-	
+
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
 
@@ -286,12 +286,12 @@ func (h *ReadHandler) truncateContent(content string, maxTokens int) string {
 	// Simple approximation: 1 token ≈ 4 characters
 	// This is a rough estimate; actual tokenization varies by model
 	maxChars := maxTokens * 4
-	
+
 	// Ensure we have a minimum reasonable size to avoid panic
 	if maxChars < 10 {
 		maxChars = 10
 	}
-	
+
 	if len(content) <= maxChars {
 		return content
 	}
@@ -303,7 +303,7 @@ func (h *ReadHandler) truncateContent(content string, maxTokens int) string {
 
 	// Truncate and add ellipsis
 	truncated := content[:maxChars-3] + "..."
-	
+
 	// Try to break at a word boundary
 	lastSpace := strings.LastIndexAny(truncated[:len(truncated)-3], " \n\t")
 	if lastSpace > maxChars*3/4 { // Only break at word if we're keeping at least 75% of content
@@ -317,29 +317,29 @@ func (h *ReadHandler) truncateContent(content string, maxTokens int) string {
 func (h *ReadHandler) writeToFile(filePath string, content string) error {
 	// Clean and validate the path to prevent path traversal attacks
 	cleanPath := filepath.Clean(filePath)
-	
+
 	// Reject paths that try to go outside current directory
 	if strings.Contains(cleanPath, "..") {
 		return fmt.Errorf("invalid file path: path traversal detected")
 	}
-	
+
 	// Convert to absolute path for validation
 	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve path: %w", err)
 	}
-	
+
 	// Get current working directory
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
-	
+
 	// Ensure the path is within the current working directory
 	if !strings.HasPrefix(absPath, cwd) {
 		return fmt.Errorf("invalid file path: must be within current directory")
 	}
-	
+
 	// Ensure the directory exists
 	dir := filepath.Dir(absPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {

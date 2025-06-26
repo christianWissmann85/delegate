@@ -35,9 +35,12 @@ type ExtractedCode struct {
 
 // Metadata contains output metadata
 type Metadata struct {
-	TotalBytes        int64  `json:"total_bytes"`
-	EstimatedTokens   int    `json:"estimated_tokens"`
-	ProviderRequestID string `json:"provider_request_id,omitempty"`
-	ProcessingTimeMs  int64  `json:"processing_time_ms"`
-	CodeOnly          bool   `json:"code_only,omitempty"`
+	TotalBytes        int64   `json:"total_bytes"`
+	EstimatedTokens   int     `json:"estimated_tokens"`
+	ProviderRequestID string  `json:"provider_request_id,omitempty"`
+	ProcessingTimeMs  int64   `json:"processing_time_ms"`
+	CodeOnly          bool    `json:"code_only,omitempty"`
+	IsTruncated       bool    `json:"is_truncated,omitempty"`
+	TruncationReason  string  `json:"truncation_reason,omitempty"`
+	TruncationConfidence float64 `json:"truncation_confidence,omitempty"`
 }

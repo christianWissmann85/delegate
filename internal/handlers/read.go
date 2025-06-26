@@ -167,14 +167,63 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 			sizeStr = fmt.Sprintf("%.1f MB", fileSizeKB/1024.0)
 		}
 
+		// Build success message
+		successMsg := fmt.Sprintf("Content written to %s (%s, ~%d tokens saved)", req.Options.WriteTo, sizeStr, tokensSaved)
+		
+		// Add truncation warning if detected
+		if output.Metadata.IsTruncated {
+			truncationWarning := fmt.Sprintf("\n\n[WARNING: Output was likely truncated (confidence: %.2f). Reason: %s]\n",
+				output.Metadata.TruncationConfidence,
+				output.Metadata.TruncationReason)
+			
+			// Add actionable hints for AI agents
+			hints := "HINTS: Consider one of these actions:\n"
+			hints += "- The file contains incomplete content - check before using\n"
+			hints += "- Retry with a more specific prompt asking for a smaller response\n"
+			hints += "- Use invoke with a higher timeout value\n"
+			
+			// Add specific hints based on truncation reason
+			if strings.Contains(output.Metadata.TruncationReason, "unclosed") {
+				hints += "- The response contains incomplete code/data structures\n"
+			}
+			if strings.Contains(output.Metadata.TruncationReason, "mid-word") {
+				hints += "- The response was cut off mid-sentence\n"
+			}
+			
+			successMsg += truncationWarning + hints
+		}
+		
 		// Return success message with size and tokens saved
 		return &ReadResponse{
-			Content:     fmt.Sprintf("Content written to %s (%s, ~%d tokens saved)", req.Options.WriteTo, sizeStr, tokensSaved),
+			Content:     successMsg,
 			Truncated:   truncated,
 			Tokens:      0, // No tokens returned when writing to file
 			Extraction:  req.Options.Extract,
 			FileWritten: true,
 		}, nil
+	}
+
+	// Add truncation warning if detected
+	if output.Metadata.IsTruncated && req.Options.BlockIndex == nil {
+		warningMsg := fmt.Sprintf("\n\n[WARNING: Output was likely truncated (confidence: %.2f). Reason: %s]\n",
+			output.Metadata.TruncationConfidence,
+			output.Metadata.TruncationReason)
+		
+		// Add actionable hints for AI agents
+		hints := "HINTS: Consider one of these actions:\n"
+		hints += "- Use write_to option to save the full output to disk (avoids token limits)\n"
+		hints += "- Retry with a more specific prompt asking for a smaller response\n"
+		hints += "- Use max_tokens with a higher value if you need more content\n"
+		
+		// Add specific hints based on truncation reason
+		if strings.Contains(output.Metadata.TruncationReason, "unclosed") {
+			hints += "- The response contains incomplete code/data structures\n"
+		}
+		if strings.Contains(output.Metadata.TruncationReason, "mid-word") {
+			hints += "- The response was cut off mid-sentence\n"
+		}
+		
+		content += warningMsg + hints
 	}
 
 	// Calculate approximate token count for returned content

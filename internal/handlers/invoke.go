@@ -117,6 +117,15 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 		fullResponse += chunk.Content
 	}
 
+	// Detect truncation
+	truncationResult := DetectTruncation(fullResponse)
+	
+	// Debug logging
+	if truncationResult.IsTruncated {
+		fmt.Printf("DEBUG: Truncation detected! IsTruncated=%v, Confidence=%f, Reason='%s'\n", 
+			truncationResult.IsTruncated, truncationResult.Confidence, truncationResult.Reason)
+	}
+
 	// Create extractor with language hint if provided
 	extractor := h.extractorFactory.Create(req.LanguageHint)
 
@@ -159,9 +168,12 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 			},
 		},
 		Metadata: models.Metadata{
-			TotalBytes:      int64(len(fullResponse)),
-			EstimatedTokens: EstimateTokens(fullResponse),
-			CodeOnly:        req.CodeOnly,
+			TotalBytes:           int64(len(fullResponse)),
+			EstimatedTokens:      EstimateTokens(fullResponse),
+			CodeOnly:             req.CodeOnly,
+			IsTruncated:          truncationResult.IsTruncated,
+			TruncationReason:     truncationResult.Reason,
+			TruncationConfidence: truncationResult.Confidence,
 		},
 	}
 
@@ -187,9 +199,17 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 		)
 	}
 
-	return &InvokeResponse{
+	resp := &InvokeResponse{
 		OutputID: output.ID,
-	}, nil
+	}
+	
+	// Add truncation warning if detected
+	if truncationResult.IsTruncated {
+		resp.Warning = fmt.Sprintf("Output likely truncated (confidence: %.2f). Use delegate_check for details or write_to to save anyway.", 
+			truncationResult.Confidence)
+	}
+	
+	return resp, nil
 }
 
 // validateRequest checks if the request is valid
@@ -238,6 +258,7 @@ type InvokeRequest struct {
 // InvokeResponse represents the invoke tool response
 type InvokeResponse struct {
 	OutputID string `json:"output_id"`
+	Warning  string `json:"warning,omitempty"`
 }
 
 // GenerateRequest is sent to providers

@@ -161,6 +161,9 @@ const metadata = await mcp.check({
 | `has_code` | boolean | Whether code blocks were detected |
 | `has_explanation` | boolean | Whether explanatory text was detected |
 | `languages` | array | Programming languages found in code blocks |
+| `is_truncated` | boolean | Whether the output appears to be truncated |
+| `truncation_reason` | string | Reason for truncation detection (if applicable) |
+| `truncation_confidence` | number | Confidence score (0.0-1.0) for truncation detection |
 
 ### **delegate_read**
 
@@ -311,6 +314,28 @@ const component = await mcp.read({
 | `file_written` | boolean | True when write_to was used successfully |
 | `multiple_blocks` | boolean | True when multiple code blocks detected with extract:"code" + write_to |
 | `block_count` | number | Number of code blocks found (when multiple_blocks is true) |
+
+**Truncation Detection:**
+
+When delegate detects that an LLM output was likely truncated mid-stream, it will:
+1. Store truncation metadata (available via `delegate_check`)
+2. Append a warning message with actionable hints when using `delegate_read`:
+   ```
+   [WARNING: Output was likely truncated (confidence: 0.85). Reason: unclosed brackets/braces]
+   HINTS: Consider one of these actions:
+   - Use write_to option to save the full output to disk (avoids token limits)
+   - Retry with a more specific prompt asking for a smaller response
+   - Use max_tokens with a higher value if you need more content
+   - The response contains incomplete code/data structures
+   ```
+
+The truncation detection algorithm checks for:
+- Unclosed quotes, brackets, braces, or code fences
+- Content ending mid-word or mid-JSON structure
+- Trailing operators or incomplete syntax
+- Suspicious size boundaries (e.g., exactly 4096, 8192 bytes)
+
+**For AI Agents:** The hints are designed to help you take appropriate action when truncation is detected. The most common solution is using the `write_to` option to save the full output directly to disk, bypassing token limits entirely.
 
 ## **Error Handling**
 

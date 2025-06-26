@@ -39,14 +39,17 @@ func (h *CheckHandler) Handle(ctx context.Context, req CheckRequest) (*CheckResp
 
 	// Build response with metadata
 	resp := &CheckResponse{
-		ID:              output.ID,
-		CreatedAt:       output.CreatedAt.Format(time.RFC3339),
-		Model:           output.Model,
-		FileSizeBytes:   output.Metadata.TotalBytes,
-		EstimatedTokens: output.Metadata.EstimatedTokens,
-		HasCode:         len(output.Response.Extracted.Code) > 0,
-		HasExplanation:  output.Response.Extracted.Explanation != "",
-		CodeBlocksCount: len(output.Response.Extracted.Code),
+		ID:                   output.ID,
+		CreatedAt:            output.CreatedAt.Format(time.RFC3339),
+		Model:                output.Model,
+		FileSizeBytes:        output.Metadata.TotalBytes,
+		EstimatedTokens:      output.Metadata.EstimatedTokens,
+		HasCode:              len(output.Response.Extracted.Code) > 0,
+		HasExplanation:       output.Response.Extracted.Explanation != "",
+		CodeBlocksCount:      len(output.Response.Extracted.Code),
+		IsTruncated:          output.Metadata.IsTruncated,
+		TruncationReason:     output.Metadata.TruncationReason,
+		TruncationConfidence: output.Metadata.TruncationConfidence,
 	}
 
 	return resp, nil
@@ -59,12 +62,15 @@ type CheckRequest struct {
 
 // CheckResponse represents the check tool response
 type CheckResponse struct {
-	ID              string `json:"id"`
-	CreatedAt       string `json:"created_at"`
-	Model           string `json:"model"`
-	FileSizeBytes   int64  `json:"file_size_bytes"`
-	EstimatedTokens int    `json:"estimated_tokens"`
-	HasCode         bool   `json:"has_code"`
-	HasExplanation  bool   `json:"has_explanation"`
-	CodeBlocksCount int    `json:"code_blocks_count"`
+	ID                   string  `json:"id"`
+	CreatedAt            string  `json:"created_at"`
+	Model                string  `json:"model"`
+	FileSizeBytes        int64   `json:"file_size_bytes"`
+	EstimatedTokens      int     `json:"estimated_tokens"`
+	HasCode              bool    `json:"has_code"`
+	HasExplanation       bool    `json:"has_explanation"`
+	CodeBlocksCount      int     `json:"code_blocks_count"`
+	IsTruncated          bool    `json:"is_truncated,omitempty"`
+	TruncationReason     string  `json:"truncation_reason,omitempty"`
+	TruncationConfidence float64 `json:"truncation_confidence,omitempty"`
 }

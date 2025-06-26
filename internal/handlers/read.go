@@ -84,6 +84,64 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 		truncated = len(content) < originalLength
 	}
 
+	// Check for multiple code blocks when using extract:"code" with write_to
+	if req.Options.WriteTo != "" && req.Options.Extract == "code" && len(output.Response.Extracted.Code) > 1 {
+		// If no specific block index is provided, return warning with block list
+		if req.Options.BlockIndex == nil {
+			// Build descriptive content about each block
+			var contentBuilder strings.Builder
+			contentBuilder.WriteString(fmt.Sprintf("Warning: Multiple code blocks found (%d blocks). Use block_index option to select specific block.\n\n", len(output.Response.Extracted.Code)))
+			
+			for i, block := range output.Response.Extracted.Code {
+				firstLine := strings.Split(block.Content, "\n")[0]
+				if len(firstLine) > 60 {
+					firstLine = firstLine[:57] + "..."
+				}
+				
+				// Count lines
+				lineCount := strings.Count(block.Content, "\n") + 1
+				
+				// Format size
+				sizeBytes := len(block.Content)
+				var sizeStr string
+				if sizeBytes < 1024 {
+					sizeStr = fmt.Sprintf("%d bytes", sizeBytes)
+				} else {
+					sizeStr = fmt.Sprintf("%.1f KB", float64(sizeBytes)/1024)
+				}
+				
+				// Language or default
+				lang := block.Language
+				if lang == "" {
+					lang = "plain"
+				}
+				
+				// Build descriptor line
+				contentBuilder.WriteString(fmt.Sprintf("Block %d: %s - \"%s\" (%s, %d lines)\n", 
+					i, lang, firstLine, sizeStr, lineCount))
+			}
+			
+			return &ReadResponse{
+				Content:          contentBuilder.String(),
+				MultipleBlocks:   true,
+				BlockCount:       len(output.Response.Extracted.Code),
+				Extraction:       req.Options.Extract,
+			}, nil
+		}
+		
+		// Use specific block if index provided
+		if req.Options.BlockIndex != nil && *req.Options.BlockIndex >= 0 && *req.Options.BlockIndex < len(output.Response.Extracted.Code) {
+			selectedBlock := output.Response.Extracted.Code[*req.Options.BlockIndex]
+			fileContent = h.cleanupCodeArtifacts(selectedBlock.Content)
+		} else if req.Options.BlockIndex != nil && *req.Options.BlockIndex >= len(output.Response.Extracted.Code) {
+			return nil, models.NewDelegateError(
+				models.ErrorTypeInvalidRequest,
+				"",
+				fmt.Sprintf("block_index %d out of range (0-%d)", *req.Options.BlockIndex, len(output.Response.Extracted.Code)-1),
+			)
+		}
+	}
+
 	// If WriteTo is specified, write to file instead of returning content
 	if req.Options.WriteTo != "" {
 		if err := h.writeToFile(req.Options.WriteTo, fileContent); err != nil {
@@ -139,19 +197,31 @@ type ReadRequest struct {
 
 // ReadOptions configures what to read
 type ReadOptions struct {
-	Extract   string `json:"extract,omitempty"`    // "all", "code", "explanation"
-	MaxTokens int    `json:"max_tokens,omitempty"` // Limit response size
-	WriteTo   string `json:"write_to,omitempty"`   // Write content to file instead of returning
+	Extract    string `json:"extract,omitempty"`     // "all", "code", "explanation"
+	MaxTokens  int    `json:"max_tokens,omitempty"`  // Limit response size
+	WriteTo    string `json:"write_to,omitempty"`    // Write content to file instead of returning
+	BlockIndex *int   `json:"block_index,omitempty"` // When multiple code blocks, select specific one (0-based)
 }
 
 // ReadResponse represents the read tool response
 type ReadResponse struct {
-	Content     string `json:"content"`
-	Truncated   bool   `json:"truncated"`
-	Tokens      int    `json:"tokens"`
-	Extraction  string `json:"extraction"`
-	Language    string `json:"language,omitempty"`
-	FileWritten bool   `json:"file_written,omitempty"`
+	Content          string            `json:"content"`
+	Truncated        bool              `json:"truncated"`
+	Tokens           int               `json:"tokens"`
+	Extraction       string            `json:"extraction"`
+	Language         string            `json:"language,omitempty"`
+	FileWritten      bool              `json:"file_written,omitempty"`
+	MultipleBlocks   bool              `json:"multiple_blocks,omitempty"`
+	BlockCount       int               `json:"block_count,omitempty"`
+	BlockDescriptors []BlockDescriptor `json:"block_descriptors,omitempty"`
+}
+
+// BlockDescriptor describes a code block for selection
+type BlockDescriptor struct {
+	Index     int    `json:"index"`
+	Language  string `json:"language"`
+	FirstLine string `json:"first_line"`
+	SizeBytes int    `json:"size_bytes"`
 }
 
 // extractCodeContent formats all code blocks into a single string

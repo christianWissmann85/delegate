@@ -32,7 +32,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		// Defaults
 		LogLevel:       getEnv("DELEGATE_LOG_LEVEL", "info"),
-		TimeoutSeconds: getEnvInt("DELEGATE_TIMEOUT_SECONDS", 60),
+		TimeoutSeconds: getEnvInt("DELEGATE_TIMEOUT_SECONDS", 180),
 		OutputDir:      getEnv("DELEGATE_OUTPUT_DIR", ".delegate"),
 
 		// API keys (no defaults)

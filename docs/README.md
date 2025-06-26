@@ -37,8 +37,8 @@ Welcome to the Delegate documentation! Delegate is an MCP server that allows Cla
 ## 🎯 Core Philosophy
 
 Delegate does three things:
-1. **invoke** - Delegate tasks to LLMs
-2. **check** - Get metadata about outputs
-3. **read** - Retrieve results
+1. **invoke** (STEP 1) - Delegate tasks to LLMs (files <1MB each, total can exceed)
+2. **check** (STEP 2) - Get metadata about outputs before retrieving
+3. **read** (STEP 3) - Retrieve results or write directly to disk (saves tokens!)
 
 That's it. No more. Read [NO SCOPE CREEP](development/NO_SCOPE_CREEP.md) to understand why.

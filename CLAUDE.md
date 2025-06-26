@@ -1,164 +1,165 @@
-# CLAUDE.md
+# CLAUDE.md - Instructions for Claude Code Instances
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Welcome, fellow Claude Code instance! 👋 You're working on **delegate** - the MCP server that lets us delegate heavy tasks to other LLMs to save our precious context tokens.
 
-## Project Overview
+## Your Role
 
-Delegate is an MCP (Model Context Protocol) server that allows Claude Code to delegate heavy tasks (code generation, document analysis, large file processing) to other LLMs (Gemini and Claude models) to save context tokens. 
+You are developing and maintaining delegate, an MCP server that YOU (and other Claude Code instances) use as a power tool. Humans don't use delegate directly - they lack MCP server connections. This is our tool, by us, for us!
 
-**Current Status**: ✅ **SHIPPED and PRODUCTION READY!** All features implemented, tested, and working beautifully.
+## What is Delegate?
 
-**Revolutionary Feature**: The `write_to` option in `delegate_read` lets you save massive outputs directly to disk WITHOUT consuming any tokens - achieving 95%+ token savings!
+Delegate is an MCP (Model Context Protocol) server that provides three simple tools:
+1. **delegate_invoke** - Send tasks to other LLMs (Gemini/Claude models)
+2. **delegate_check** - Check output size/tokens before retrieving
+3. **delegate_read** - Retrieve results OR write directly to disk (saving tokens!)
 
-**Core Philosophy**: Read `docs/development/NO_SCOPE_CREEP.md` before making ANY changes. This project does exactly 3 things via MCP tools: invoke, check, and read.
+**The Magic**: The `write_to` option in `delegate_read` lets you save massive outputs directly to disk WITHOUT consuming any tokens - achieving 95%+ token savings!
 
-## Installation and Usage
+## Core Philosophy
+
+Before making ANY changes, read `docs/development/NO_SCOPE_CREEP.md`. This project is intentionally minimal:
+- ✅ Only 3 tools: invoke, check, read
+- ✅ Stateless operations only
+- ✅ Local filesystem storage
+- ❌ NO session management
+- ❌ NO progress tracking
+- ❌ NO web UI or CLI tools
+- ❌ NO cloud storage
+
+## Development Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/christianwissmann85/delegate.git
-cd delegate
-
-# Build the project
-go build -o delegate main.go
-
-# Add to Claude Code
-claude mcp add delegate -s project -- go run main.go
-```
-
-## Development Commands
-
-```bash
-# Run tests
-go test ./...
-go test -v -tags=e2e ./e2e/...  # E2E tests (now passing!)
+# You're already in the repo, but for reference:
+cd /home/chris/repos/delegate
 
 # Build
 go build -o delegate main.go
 
-# Format and lint
-go fmt ./...
-go vet ./...
+# Run tests
+go test ./...
+go test -v -tags=e2e ./e2e/...  # E2E tests
+
+# The delegate MCP server is already installed in Claude Code
+# After changes, ask the human to restart: "Please restart the delegate MCP server"
 ```
 
-## Architecture
+## Using Delegate While Developing It
 
-The codebase follows this structure:
-```
-delegate/
-├── main.go               # MCP server entry point
-├── go.mod
-└── internal/
-    ├── mcp/              # MCP protocol implementation
-    │   └── server.go     # Handles MCP connections and tool routing
-    ├── config/           # Configuration management
-    ├── handlers/         # Implements invoke, check, read logic
-    ├── providers/        # LLM provider implementations
-    │   ├── interface.go  # Common provider interface
-    │   ├── anthropic.go  # Claude integration
-    │   └── google.go     # Gemini integration
-    ├── extractor/        # Code/explanation extraction logic
-    └── storage/          # File system operations
-```
-
-## Key Implementation Details
-
-1. **MCP Tools** - Only 3 tools exist:
-   - `invoke`: Generate code using specified model
-   - `check`: Get metadata about generated output
-   - `read`: Retrieve generated content
-   - Tool descriptions for MCP registration: see `docs/mcp-tool-descriptions.md`
-
-2. **Storage**: All outputs stored in `.delegate/` directory with format `out_YYYYMMDD_HHMMSS`
-
-3. **Providers**: Only Gemini (Flash/Pro) and Claude (Sonnet/Opus 4) models
-
-4. **Testing Strategy**:
-   - Unit tests: `internal/*/[module]_test.go`
-   - Integration tests: Same location
-   - E2E tests: `e2e_test.go` with build tag
-   - Test fixtures: `test/fixtures/`
-
-5. **Performance Requirements**:
-   - Check operation: <100ms
-   - Read operation: <500ms
-   - Streaming for invoke to prevent timeouts
-
-## Critical Constraints
-
-- NO new features beyond the 3 tools (see `docs/NO_SCOPE_CREEP.md`)
-- NO session management, progress indicators, or complex routing
-- NO web UI, CLI tools, or analytics
-- Stateless - each operation is atomic
-- Local filesystem only - no cloud storage
-- Single prompt, single response - no conversations
-
-## Current Implementation Status
-
-✅ **ALL FEATURES COMPLETE AND TESTED!**
-
-- ✅ MCP Server Foundation
-  - JSON-RPC protocol handling
-  - Tool registration with full schemas
-  - Structured JSON logging
-  - Configuration management
-  
-- ✅ Storage Layer
-  - File-based storage implementation
-  - Output ID generation with atomic counter
-  - Atomic writes to prevent corruption
-  - Hourly cleanup routine (deletes files >24h old)
-  
-- ✅ All 3 Tools Working
-  - `delegate_invoke` - Delegate tasks to Gemini/Claude models
-  - `delegate_check` - Get metadata without consuming tokens
-  - `delegate_read` - Retrieve results (with revolutionary `write_to` feature!)
-  
-- ✅ Security Hardened
-  - Path traversal prevention in `write_to`
-  - Input validation on all parameters
-  - Robust error handling
-  
-- ✅ Fully Tested
-  - Unit tests passing
-  - Integration tests passing
-  - E2E tests passing (fixed MCP protocol parsing)
-  - Real API tests with Gemini working
-
-See `docs/development/implementation-roadmap-VICTORY.md` for the celebration roadmap!
-
-## Documentation Structure
-
-```
-docs/
-├── architecture/     # Technical specs and decisions
-├── development/      # Roadmap, testing, philosophy
-├── guides/          # User and developer guides
-└── reference/       # API and model references
-```
-
-Key documents:
-- Token-Efficient Workflow: `docs/guides/token-efficient-workflow.md` (MUST READ!)
-- Architecture: `docs/architecture/architecture-spec.md`
-- Victory Roadmap: `docs/development/implementation-roadmap-VICTORY.md`
-- Philosophy: `docs/development/NO_SCOPE_CREEP.md`
-
-## Production Usage Examples
+Yes, you can use delegate to help develop delegate! 🤯
 
 ```bash
-# Iterative single-file generation workflow (RECOMMENDED)
-delegate_invoke(model: "gemini-2.5-flash", prompt: "Create user.go model with GORM tags")
-delegate_check(output_id)  # Check size first
-delegate_read(output_id, options: {write_to: "models/user.go"})  # Output: "Content written to models/user.go (3.2 KB, ~800 tokens saved)"
-
-# Fix compilation errors iteratively
-go build models/user.go 2> errors.txt
-delegate_invoke(model: "gemini-2.5-flash", files: ["models/user.go", "errors.txt"], prompt: "Fix these compilation errors")
-delegate_read(output_id, options: {write_to: "models/user.go"})  # Output: "Content written to models/user.go (3.4 KB, ~850 tokens saved)"
-
-# Build complex projects file by file
-delegate_invoke(model: "gemini-2.5-flash", prompt: "Create README.md for BlogAPI project")
-delegate_read(output_id, options: {write_to: "README.md"})
-delegate_invoke(model: "gemini-2.5-flash", prompt: "Create auth middleware", files: ["README.md", "models/user.go"])
-delegate_read(output_id, options: {write_to: "middleware/auth.go"})
+# Example: Generate a new test file
+delegate_invoke(model: "gemini-2.5-flash", prompt: "Create comprehensive unit tests for the multi-block handling feature")
+delegate_check(output_id)
+delegate_read(output_id, options: {write_to: "/home/chris/repos/delegate/internal/handlers/multiblock_test.go", extract: "code"})
 ```
+
+## Key Features You Should Know
+
+### 1. Multi-Block Handling (NEW!)
+
+When LLMs return multiple code blocks, delegate now shows a helpful listing:
+
+```
+Warning: Multiple code blocks found (4 blocks). Use block_index option to select specific block.
+
+Block 0: go - "package main" (4.3 KB, 150 lines)
+Block 1: go - "package main_test" (1.2 KB, 45 lines)
+Block 2: yaml - "version: '3.8'" (456 bytes, 23 lines)
+Block 3: markdown - "# Usage Instructions" (892 bytes, 34 lines)
+```
+
+Then use `block_index` to select the one you want!
+
+### 2. Token-Free File Writing
+
+```bash
+# This writes directly to disk - you never see the content!
+delegate_read(output_id, options: {write_to: "/absolute/path/to/file.go", extract: "code"})
+# Output: "Content written to file.go (15.2 KB, ~3800 tokens saved)"
+```
+
+### 3. Smart Code Extraction
+
+- `extract: "code"` - Strips markdown fences for clean source files
+- `extract: "all"` - Keeps original formatting (good for docs)
+- `extract: "explanation"` - Gets only the explanatory text
+
+## Common Development Tasks
+
+### Adding a New Feature
+1. First, ask yourself: "Does this violate NO_SCOPE_CREEP.md?"
+2. If yes, stop. If no, proceed.
+3. Use delegate to generate boilerplate/tests
+4. Implement the feature
+5. Run tests: `go test ./...`
+
+### Fixing Bugs
+1. Reproduce the issue
+2. Write a failing test
+3. Fix the bug
+4. Verify all tests pass
+
+### Updating Documentation
+Always update docs when changing functionality:
+- `docs/reference/api-reference.md` - API changes
+- `docs/guides/token-efficient-workflow.md` - Usage patterns
+- `docs/development/` - Development notes
+
+## Project Structure
+
+```
+delegate/
+├── main.go               # Entry point
+├── internal/
+│   ├── mcp/             # MCP protocol layer
+│   ├── handlers/        # invoke, check, read implementations
+│   ├── providers/       # LLM integrations (Anthropic, Google)
+│   ├── extractor/       # Code/text extraction logic
+│   └── storage/         # File system operations
+└── docs/
+    ├── guides/          # User guides (for Claude Code instances!)
+    ├── reference/       # API documentation
+    └── development/     # Development docs
+```
+
+## Testing Your Changes
+
+```bash
+# Unit tests
+go test ./internal/handlers/...
+
+# Integration tests  
+go test ./internal/providers/...
+
+# Full E2E tests
+go test -v -tags=e2e ./e2e/...
+
+# Quick manual test
+delegate_invoke(model: "gemini-2.5-flash", prompt: "Say hello")
+delegate_check(output_id)
+delegate_read(output_id)
+```
+
+## Important Implementation Details
+
+1. **Storage**: Outputs stored in `.delegate/outputs/` with 24-hour auto-cleanup
+2. **Models**: Only Gemini (Flash/Pro) and Claude (Sonnet/Opus 4)
+3. **Security**: Path traversal protection, input validation
+4. **Performance**: Check <100ms, Read <500ms, Streaming for invoke
+
+## When You're Stuck
+
+1. Check existing patterns in the codebase
+2. Read the comprehensive docs in `docs/`
+3. Use delegate itself to explore solutions
+4. Ask the human to restart the MCP server after changes
+
+## Remember
+
+You're not just using delegate - you're making it better for all Claude Code instances! Every improvement helps your future self and your fellow instances save tokens and work more efficiently.
+
+Happy coding! 🚀
+
+---
+*P.S. If a human is reading this: Hi! This file is for Claude Code instances working on delegate. You can read it, but you can't use delegate directly - you need an MCP client like Claude Code!*

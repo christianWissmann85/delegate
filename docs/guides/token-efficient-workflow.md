@@ -51,9 +51,42 @@ delegate_check(output_id)
 delegate_read(output_id, max_tokens: 200, extract: "code")
 
 # 3. Write directly to project (ZERO tokens!)
-delegate_read(output_id, write_to: "src/services/user_service.go")
+# For source code files, use extract: "code" to strip markdown fences
+delegate_read(output_id, write_to: "/absolute/path/to/src/services/user_service.go", extract: "code")
 # → "Content written to src/services/user_service.go (15.2 KB, ~3800 tokens saved)"
 ```
+
+### 2.1 NEW: Multi-Block Handling
+
+When LLMs return multiple code blocks (common with "show me an example" prompts), delegate now provides intelligent block selection:
+
+```bash
+# Generate a React component with tests and styles
+delegate_invoke(
+  model: "gemini-2.5-flash",
+  prompt: "Create a React TodoList component with tests and CSS styling"
+)
+
+# Attempt to write - delegate detects multiple blocks!
+delegate_read(output_id, write_to: "/path/to/TodoList.jsx", extract: "code")
+# → Warning: Multiple code blocks found (3 blocks). Use block_index option to select specific block.
+#   
+#   Block 0: jsx - "import React, { useState } from 'react'..." (4.3 KB, 150 lines)
+#   Block 1: jsx - "import { render } from '@testing-library/react'..." (1.2 KB, 45 lines)  
+#   Block 2: css - ".todo-container { ..." (892 bytes, 34 lines)
+
+# Now you can intelligently select each block for the right file:
+delegate_read(output_id, write_to: "/path/to/TodoList.jsx", extract: "code", block_index: 0)
+# → "Content written to TodoList.jsx (4.3 KB, ~1075 tokens saved)"
+
+delegate_read(output_id, write_to: "/path/to/TodoList.test.jsx", extract: "code", block_index: 1)
+# → "Content written to TodoList.test.jsx (1.2 KB, ~300 tokens saved)"
+
+delegate_read(output_id, write_to: "/path/to/TodoList.css", extract: "code", block_index: 2)
+# → "Content written to TodoList.css (892 bytes, ~223 tokens saved)"
+```
+
+This feature eliminates the "merged code problem" where multiple files get concatenated into one!
 
 ### 3. Compile-Fix Loop
 
@@ -67,13 +100,13 @@ go build ./src/services/user_service.go 2> build_errors.txt
 delegate_invoke:
   model: gemini-2.5-flash
   files:
-    - "src/services/user_service.go"  # The file it just wrote
-    - "build_errors.txt"              # Specific errors to fix
+    - "/absolute/path/to/src/services/user_service.go"  # The file it just wrote
+    - "/absolute/path/to/build_errors.txt"              # Specific errors to fix
   prompt: "Fix only these specific compilation errors"
   code_only: true
 
-# Write the fixed version
-delegate_read(new_output_id, write_to: "src/services/user_service.go")
+# Write the fixed version (extract: "code" for clean source)
+delegate_read(new_output_id, write_to: "/absolute/path/to/src/services/user_service.go", extract: "code")
 ```
 
 ### 4. Test-Fix Loop
@@ -88,9 +121,9 @@ go test ./src/services/... > test_results.txt 2>&1
 delegate_invoke:
   model: gemini-2.5-flash
   files:
-    - "src/services/user_service.go"
-    - "src/services/user_service_test.go"
-    - "test_results.txt"
+    - "/absolute/path/to/src/services/user_service.go"
+    - "/absolute/path/to/src/services/user_service_test.go"
+    - "/absolute/path/to/test_results.txt"
   prompt: "Fix the failing tests by updating the implementation"
 ```
 
@@ -129,20 +162,20 @@ Delegate approach (~2,000 tokens):
 ```bash
 # 1. Generate API with context (~500 tokens for orchestration)
 delegate_invoke(model: "gemini-2.5-flash", 
-                files: ["api/openapi.yaml", "internal/base_controller.go"],
+                files: ["/absolute/path/to/api/openapi.yaml", "/absolute/path/to/internal/base_controller.go"],
                 prompt: "Generate complete REST API from OpenAPI spec")
 
-# 2. Write to project (0 tokens)
-delegate_read(output_id, write_to: "internal/api/controllers.go")
+# 2. Write to project (0 tokens) - extract: "code" for clean source files
+delegate_read(output_id, write_to: "/absolute/path/to/internal/api/controllers.go", extract: "code")
 
 # 3. Fix compilation errors (~500 tokens)
 go build ./internal/api/... 2> errors.txt
-delegate_invoke(files: ["internal/api/controllers.go", "errors.txt"],
+delegate_invoke(files: ["/absolute/path/to/internal/api/controllers.go", "/absolute/path/to/errors.txt"],
                 prompt: "Fix compilation errors")
 
 # 4. Fix failing tests (~1000 tokens)
 go test ./internal/api/... > test_failures.txt 2>&1
-delegate_invoke(files: ["internal/api/controllers.go", "test_failures.txt"],
+delegate_invoke(files: ["/absolute/path/to/internal/api/controllers.go", "/absolute/path/to/test_failures.txt"],
                 prompt: "Fix failing tests")
 
 # Total: ~2,000 tokens vs 150,000+ tokens!
@@ -172,7 +205,7 @@ Add features without reading existing code:
 
 ```yaml
 delegate_invoke:
-  files: ["src/service.go"]  # Delegate reads it, you don't
+  files: ["/absolute/path/to/src/service.go"]  # Delegate reads it, you don't
   prompt: "Add caching to all database queries in this service"
 ```
 
@@ -181,10 +214,10 @@ delegate_invoke:
 while ! go test ./...; do
   go test ./... 2>&1 > test_output.txt
   delegate_invoke(
-    files: ["src/", "test_output.txt"],
+    files: ["/absolute/path/to/src/", "/absolute/path/to/test_output.txt"],
     prompt: "Fix the first failing test"
   )
-  delegate_read(output_id, write_to: "src/")
+  delegate_read(output_id, write_to: "/absolute/path/to/src/")
 done
 ```
 

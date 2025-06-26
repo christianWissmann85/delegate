@@ -5,9 +5,9 @@ Welcome to Delegate - the dead-simple way to save Claude Code's context tokens b
 ## **What is Delegate?**
 
 Delegate is an MCP server that gives Claude Code three simple tools:
-- **invoke** - Generate code with Gemini or Claude models
-- **check** - See how big the output is before reading
-- **read** - Get the generated content (or just parts of it)
+- **invoke** (STEP 1) - Generate code with Gemini or Claude models, each file <1MB
+- **check** (STEP 2) - See how big the output is before reading
+- **read** (STEP 3) - Get the generated content or write directly to disk (saves tokens!)
 
 That's it. No complexity. Just industrial-strength delegation.
 
@@ -80,7 +80,7 @@ Claude Code will automatically use Delegate without consuming its own precious t
    await delegate_invoke({
      model: "gemini-2.5-flash",
      prompt: "Create a complete REST API...",
-     files: ["requirements.md"]
+     files: ["/absolute/path/to/requirements.md"]  // Must use absolute paths!
    })
    ```
 
@@ -123,6 +123,39 @@ tail -f ~/.claude/logs/mcp-server-delegate.log
 # Check your outputs
 ls .delegate/outputs/
 ```
+
+## **🆕 Multi-Block Handling**
+
+When generating code that includes multiple files (like a component + tests + styles), Delegate now intelligently handles them:
+
+```javascript
+// You ask for:
+"Create a React TodoList component with tests and CSS"
+
+// Delegate generates multiple code blocks
+// When you try to save:
+await delegate_read({ 
+  output_id: "out_123", 
+  options: { 
+    extract: "code", 
+    write_to: "/path/to/TodoList.jsx" 
+  }
+});
+
+// You'll see:
+"Warning: Multiple code blocks found (3 blocks). Use block_index option to select specific block.
+
+Block 0: jsx - "import React, { useState } from 'react'..." (4.3 KB, 150 lines)
+Block 1: jsx - "import { render } from '@testing-library/react'..." (1.2 KB, 45 lines)  
+Block 2: css - ".todo-container { ..." (892 bytes, 34 lines)"
+
+// Now you can save each one properly:
+await delegate_read({ output_id: "out_123", options: { extract: "code", write_to: "/path/to/TodoList.jsx", block_index: 0 }});
+await delegate_read({ output_id: "out_123", options: { extract: "code", write_to: "/path/to/TodoList.test.jsx", block_index: 1 }});
+await delegate_read({ output_id: "out_123", options: { extract: "code", write_to: "/path/to/TodoList.css", block_index: 2 }});
+```
+
+This prevents the common problem of multiple files being merged into one!
 
 ## **💡 Pro Tips**
 

@@ -29,14 +29,14 @@ These keys are never transmitted except to their respective providers over HTTPS
 
 ### **delegate_invoke**
 
-Delegates a generation task to a specified LLM. This is an asynchronous operation that creates a persistent output artifact and returns a unique ID for it.
+STEP 1: Delegates a generation task to a specified LLM. This is an asynchronous operation that creates a persistent output artifact and returns a unique ID for it. Does NOT write files directly - stores in temp storage. Each input file must be <1MB, but total can exceed.
 
 #### **Tool Definition**
 
 ```typescript
 {
   name: "delegate_invoke",
-  description: "Generate code or content using an external LLM",
+  description: "STEP 1: Delegate file generation to save tokens. Does NOT write files directly - stores in temp storage. Returns output_id for use with delegate_check then delegate_read(write_to). IMPORTANT: Use ABSOLUTE paths in 'files' parameter. Each file must be <1MB, but total can exceed.",
   parameters: {
     model: {
       type: "string",
@@ -53,7 +53,7 @@ Delegates a generation task to a specified LLM. This is an asynchronous operatio
       type: "array",
       items: { type: "string" },
       required: false,
-      description: "File paths to include as context."
+      description: "ABSOLUTE file paths to include as context (not relative!). Example: '/home/user/project/model.go' not 'model.go'. Each file must be <1MB."
     },
     max_tokens: {
       type: "number",
@@ -73,7 +73,7 @@ Delegates a generation task to a specified LLM. This is an asynchronous operatio
     timeout: {
       type: "number",
       required: false,
-      description: "Request-specific timeout in seconds (overrides DELEGATE_TIMEOUT_SECONDS)"
+      description: "Timeout in seconds (default: 180, max: 600). Suggested: 180s minimum for code, 400s minimum for creative tasks, 400-600s for very large file(s)/bundle(s) analysis."
     }
   }
 }
@@ -112,14 +112,14 @@ const result = await mcp.invoke({
 
 ### **delegate_check**
 
-Retrieves metadata about a previously generated output artifact without reading its content. Essential for token-efficient operations.
+STEP 2: Retrieves metadata about a previously generated output artifact without reading its content. Essential for token-efficient operations. Use this after delegate_invoke, before delegate_read to understand size and avoid consuming unnecessary tokens.
 
 #### **Tool Definition**
 
 ```typescript
 {
   name: "delegate_check",
-  description: "Get metadata about a generated output without reading content",
+  description: "STEP 2: Check delegated task status and size before retrieving. Shows token count and file size. Use this after delegate_invoke, before delegate_read. Helps avoid consuming unnecessary tokens.",
   parameters: {
     output_id: {
       type: "string",
@@ -164,14 +164,14 @@ const metadata = await mcp.check({
 
 ### **delegate_read**
 
-Reads the content of an output artifact, with powerful options for extraction and truncation.
+STEP 3: Reads the content of an output artifact, with powerful options for extraction and truncation. The key feature is the 'write_to' option which saves files directly to disk WITHOUT consuming any tokens.
 
 #### **Tool Definition**
 
 ```typescript
 {
   name: "delegate_read",
-  description: "Read content from a generated output",
+  description: "STEP 3: Get delegated results. WORKFLOW: invoke -> check -> read. To save tokens: use 'write_to' with ABSOLUTE path to write file directly (no content returned). To get content: omit 'write_to'. Use 'extract' for code-only or explanation-only.",
   parameters: {
     output_id: {
       type: "string",
@@ -198,7 +198,11 @@ Reads the content of an output artifact, with powerful options for extraction an
         },
         write_to: {
           type: "string",
-          description: "Write content to this file path instead of returning it (SAVES TOKENS!)"
+          description: "ABSOLUTE file path to write content directly to disk (saves tokens - no content returned). Example: '/home/user/project/new_file.go' not 'new_file.go'"
+        },
+        block_index: {
+          type: "number",
+          description: "When multiple code blocks exist, specify which one to extract (0-based index). Use after getting block list warning."
         }
       }
     }
@@ -240,6 +244,29 @@ const result = await mcp.read({
     write_to: "src/middleware/error-handler.js"
   }
 });
+
+// NEW: Handle multiple code blocks
+const multiBlock = await mcp.read({
+  output_id: "out_20250620_204000",
+  options: {
+    extract: "code",
+    write_to: "src/components/TodoList.jsx"
+  }
+});
+// Returns: Warning: Multiple code blocks found (3 blocks)...
+// Block 0: jsx - "import React..." (4.3 KB, 150 lines)
+// Block 1: jsx - "import { render }..." (1.2 KB, 45 lines)
+// Block 2: css - ".todo-container..." (892 bytes, 34 lines)
+
+// Select specific block
+const component = await mcp.read({
+  output_id: "out_20250620_204000",
+  options: {
+    extract: "code",
+    write_to: "src/components/TodoList.jsx",
+    block_index: 0
+  }
+});
 ```
 
 #### **Success Response**
@@ -256,11 +283,19 @@ const result = await mcp.read({
 
 // Response when using write_to (no content returned!)
 {
-  content: "Content written to src/middleware/error-handler.js",
+  content: "Content written to src/middleware/error-handler.js (3.2 KB, ~800 tokens saved)",
   truncated: false,
   tokens: 0,
   extraction: "code",
   file_written: true
+}
+
+// Multi-block warning response (when extract: "code" with write_to finds multiple blocks)
+{
+  content: "Warning: Multiple code blocks found (3 blocks). Use block_index option to select specific block.\n\nBlock 0: jsx - \"import React, { useState } from 'react'...\" (4.3 KB, 150 lines)\nBlock 1: jsx - \"import { render } from '@testing-library/react'...\" (1.2 KB, 45 lines)\nBlock 2: css - \".todo-container { ...\" (892 bytes, 34 lines)",
+  multiple_blocks: true,
+  block_count: 3,
+  extraction: "code"
 }
 ```
 
@@ -274,6 +309,8 @@ const result = await mcp.read({
 | `extraction` | string | What was extracted ("all", "code", or "explanation") |
 | `language` | string | Language filter applied (if any) |
 | `file_written` | boolean | True when write_to was used successfully |
+| `multiple_blocks` | boolean | True when multiple code blocks detected with extract:"code" + write_to |
+| `block_count` | number | Number of code blocks found (when multiple_blocks is true) |
 
 ## **Error Handling**
 

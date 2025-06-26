@@ -9,9 +9,9 @@ Delegate is YOUR tool - built specifically to help you (Claude Code) generate co
 ### Your MCP Tools
 ```javascript
 // That's it. Three tools. Nothing else.
-delegate_invoke(params)  // Generate code with another LLM
-delegate_check(params)   // Check output size before reading
-delegate_read(params)    // Read the output (or parts of it)
+delegate_invoke(params)  // STEP 1: Generate code with another LLM (files <1MB each)
+delegate_check(params)   // STEP 2: Check output size before reading
+delegate_read(params)    // STEP 3: Read the output or write to disk (saves tokens!)
 ```
 
 ## Core Workflow Pattern
@@ -23,7 +23,7 @@ delegate_read(params)    // Read the output (or parts of it)
 const output = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Create models/user.go with GORM tags for user management",
-    files: ["requirements.md", "database_schema.sql"]
+    files: ["/absolute/path/to/requirements.md", "/absolute/path/to/database_schema.sql"]  // MUST use absolute paths!
 });
 
 // 2. Check size (optional but recommended)
@@ -36,7 +36,7 @@ console.log(`Generated ${info.size_kb}KB`);
 const result = await delegate_read({
     output_id: output.id,
     options: { 
-        write_to: "models/user.go"  // Magic happens here!
+        write_to: "/absolute/path/to/models/user.go"  // MUST use absolute path! Magic happens here!
     }
 });
 // Output: "Content written to models/user.go (4.5 KB, ~1125 tokens saved)"
@@ -97,22 +97,22 @@ const output = await delegate_invoke({
 const models = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Create models/user.js with Mongoose schema for user authentication",
-    files: ["requirements.md"]
+    files: ["/absolute/path/to/requirements.md"]
 });
 await delegate_read({ 
     output_id: models.id, 
-    options: { write_to: "models/user.js" }
+    options: { write_to: "/absolute/path/to/models/user.js" }
 });
 
 // Step 2: Auth middleware (with context from previous file)
 const middleware = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Create middleware/auth.js for JWT authentication",
-    files: ["models/user.js", "requirements.md"]
+    files: ["/absolute/path/to/models/user.js", "/absolute/path/to/requirements.md"]
 });
 await delegate_read({ 
     output_id: middleware.id, 
-    options: { write_to: "middleware/auth.js" }
+    options: { write_to: "/absolute/path/to/middleware/auth.js" }
 });
 // Output: "Content written to middleware/auth.js (3.2 KB, ~800 tokens saved)"
 
@@ -125,7 +125,7 @@ await delegate_read({
 const output = await delegate_invoke({
     model: "claude-sonnet-4-20250514",  // Use Claude for analysis
     prompt: "Analyze this code for security vulnerabilities and suggest fixes",
-    files: ["src/auth/login.js", "src/auth/session.js"]
+    files: ["/absolute/path/to/src/auth/login.js", "/absolute/path/to/src/auth/session.js"]
 });
 
 // Read the analysis
@@ -148,7 +148,7 @@ const api = await delegate_invoke({
 // Write to file - ZERO tokens
 await delegate_read({ 
     output_id: api.id, 
-    options: { write_to: "server.go" }
+    options: { write_to: "/absolute/path/to/server.go" }
 });
 
 // Try to compile
@@ -158,13 +158,13 @@ await delegate_read({
 const fixed = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Fix the compilation errors in server.go",
-    files: ["server.go", "errors.txt"]  // Delegate reads the files!
+    files: ["/absolute/path/to/server.go", "/absolute/path/to/errors.txt"]  // Delegate reads the files! Use absolute paths!
 });
 
 // Overwrite with fixed version - STILL ZERO tokens
 await delegate_read({ 
     output_id: fixed.id, 
-    options: { write_to: "server.go" }
+    options: { write_to: "/absolute/path/to/server.go" }
 });
 // Output: "Content written to server.go (12.3 KB, ~3075 tokens saved)"
 
@@ -183,7 +183,7 @@ const analysis = await delegate_invoke({
     4. Testing approaches
     
     Provide a structured summary with examples.`,
-    files: ["arch-doc-1.md", "arch-doc-2.md", "arch-doc-3.md", "api-spec.md"]
+    files: ["/abs/path/arch-doc-1.md", "/abs/path/arch-doc-2.md", "/abs/path/arch-doc-3.md", "/abs/path/api-spec.md"]
 });
 
 // I get a focused summary instead of reading 20k lines
@@ -261,7 +261,7 @@ await delegate_invoke({
 // ✅ GOOD - Clear context
 await delegate_invoke({
     prompt: "Update the API to handle the new requirements",
-    files: ["new_requirements.md", "current_api.js", "test_cases.js"]
+    files: ["/abs/path/new_requirements.md", "/abs/path/current_api.js", "/abs/path/test_cases.js"]
 });
 ```
 
@@ -325,7 +325,7 @@ const code = await delegate_read({ output_id: output.id });
 // GOOD - Zero tokens, automatic file creation
 await delegate_read({ 
     output_id: output.id,
-    options: { write_to: "src/newfile.js" }
+    options: { write_to: "/absolute/path/to/src/newfile.js" }
 });
 ```
 
@@ -382,7 +382,7 @@ const output = await delegate_invoke({
 const output = await delegate_invoke({
     model: "claude-opus-4-20250514",
     prompt: "Generate a complete microservices architecture...",
-    timeout: 120  // 2 minutes instead of default 60s
+    timeout: 400  // 400s for complex tasks (default is 180s)
 });
 ```
 
@@ -399,7 +399,7 @@ const content = await delegate_read({ output_id: "out_123" });
 // New way - ZERO tokens!
 await delegate_read({ 
     output_id: "out_123",
-    options: { write_to: "src/api/server.go" }
+    options: { write_to: "/absolute/path/to/src/api/server.go" }
 });
 // Output: "Content written to src/api/server.go (20.5 KB, ~5125 tokens saved)"
 ```
@@ -409,13 +409,13 @@ await delegate_read({
 // Source files - removes markdown formatting automatically
 await delegate_read({ 
     output_id: output.id,
-    options: { write_to: "main.py" }  // Clean Python code, no ```python
+    options: { write_to: "/absolute/path/to/main.py" }  // Clean Python code, no ```python
 });
 
 // Documentation - preserves markdown formatting
 await delegate_read({ 
     output_id: output.id,
-    options: { write_to: "README.md" }  // Keeps code fences for display
+    options: { write_to: "/absolute/path/to/README.md" }  // Keeps code fences for display
 });
 ```
 
@@ -425,7 +425,7 @@ await delegate_read({
 await delegate_read({ 
     output_id: output.id,
     options: { 
-        write_to: "implementation.js",
+        write_to: "/absolute/path/to/implementation.js",
         extract: "code"  // Only code blocks, no explanations
     }
 });
@@ -495,7 +495,8 @@ async function generateWithUserChoice(prompt) {
 - Check the output_id is correct
 
 ### "Timeout error"
-- Default 60-second limit
+- Default 180-second limit
+- For complex tasks, increase timeout to 400-600 seconds
 - Simplify prompt or break into smaller tasks
 
 ### "Extraction failed"
@@ -507,7 +508,7 @@ async function generateWithUserChoice(prompt) {
 - May be rate limited - wait and retry
 
 ### "File too large"
-- Max 100KB per attached file
+- Max 1MB per attached file (total can exceed)
 - Split large files or summarize first
 
 ## Example: Complete Feature Flow
@@ -539,14 +540,14 @@ const modelCode = await delegate_read({
 const websocket = await delegate_invoke({
     model: "gemini-2.5-pro",  // More complex, upgrade model
     prompt: "Create Socket.io handlers for real-time chat with rooms",
-    files: ["generated_models.js"]  // Pass the models as context
+    files: ["/absolute/path/to/generated_models.js"]  // Pass the models as context, use absolute paths!
 });
 
 // 5. Generate frontend components
 const frontend = await delegate_invoke({
     model: "gemini-2.5-flash",
     prompt: "Create React components for the chat interface",
-    files: ["socket_events.js", "ui_mockup.png"]
+    files: ["/absolute/path/to/socket_events.js", "/absolute/path/to/ui_mockup.png"]
 });
 
 // Continue pattern...
@@ -583,6 +584,6 @@ The ultimate workflow:
 ```javascript
 // Generate → Write → Repeat
 await delegate_invoke({ prompt: "Create models/user.go" });
-await delegate_read({ output_id, options: { write_to: "models/user.go" }});
+await delegate_read({ output_id, options: { write_to: "/absolute/path/to/models/user.go", extract: "code" }});
 // "Content written to models/user.go (5.2 KB, ~1300 tokens saved)"
 ```

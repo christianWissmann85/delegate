@@ -80,7 +80,7 @@ delegate_read(output_id, options: {extract: "code"})  # Read only what you need
 
 ### With Delegate (Claude as a Team Lead):
 - 🧠 Claude focuses on architecture & decisions
-- 🚀 Gemini handles the heavy lifting (2M context!)
+- 🚀 Gemini handles the heavy lifting (1M context!)
 - 💾 Generated files saved directly (0 tokens!)
 - 🎯 Claude's context stays clean for important work
 - 💰 90%+ token savings on large generations

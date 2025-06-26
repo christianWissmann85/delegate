@@ -42,7 +42,7 @@ func (t *InvokeTool) Name() string {
 }
 
 func (t *InvokeTool) Description() string {
-	return "Delegate SINGLE FILE generation (one source file OR one doc) to save tokens. Examples: 'Create user.go model', 'Generate README.md'. For multiple files, call repeatedly. Best with Gemini models (1M context). Returns output_id for retrieval."
+	return "STEP 1: Delegate file generation to save tokens. Does NOT write files directly - stores in temp storage. Returns output_id for use with delegate_check then delegate_read(write_to). IMPORTANT: Use ABSOLUTE paths in 'files' parameter. Each file must be <1MB, but total can exceed."
 }
 
 func (t *InvokeTool) Schema() JSONSchema {
@@ -60,7 +60,7 @@ func (t *InvokeTool) Schema() JSONSchema {
 			},
 			"files": {
 				Type:        "array",
-				Description: "Absolute file paths to include as context (e.g., previously generated files for consistency).",
+				Description: "ABSOLUTE file paths to include as context (not relative!). Example: '/home/user/project/model.go' not 'model.go'",
 				Items: &Property{
 					Type: "string",
 				},
@@ -79,7 +79,7 @@ func (t *InvokeTool) Schema() JSONSchema {
 			},
 			"timeout": {
 				Type:        "number",
-				Description: "Timeout in seconds (default: 60, max: 600). Suggested: 60-90 for code, 90-120 for large docs.",
+				Description: "Timeout in seconds (default: 180, max: 600). Suggested: 180s minimum for code, 400s minimum for creative tasks, 400-600s for very large file(s)/bundle(s) analysis.",
 			},
 		},
 		Required: []string{"model", "prompt"},
@@ -104,7 +104,7 @@ func (t *CheckTool) Name() string {
 }
 
 func (t *CheckTool) Description() string {
-	return "Get metadata about a delegated task output including size, token count, and creation time. Always use this before reading to avoid consuming unnecessary tokens. Returns file size in bytes and estimated token count."
+	return "STEP 2: Check delegated task status and size before retrieving. Shows token count and file size. Use this after delegate_invoke, before delegate_read. Helps avoid consuming unnecessary tokens."
 }
 
 func (t *CheckTool) Schema() JSONSchema {
@@ -138,7 +138,7 @@ func (t *ReadTool) Name() string {
 }
 
 func (t *ReadTool) Description() string {
-	return "Retrieve results from a delegated task. Use 'extract' option to get only code or explanation. Use 'max_tokens' to limit response size. **KEY FEATURE**: Use 'write_to' to save output directly to a file WITHOUT consuming any tokens! Best practice: always check() before read() to know what you're getting."
+	return "STEP 3: Get delegated results. WORKFLOW: invoke -> check -> read. To save tokens: use 'write_to' with ABSOLUTE path to write file directly (no content returned). To get content: omit 'write_to'. IMPORTANT: Use extract:'code' to strip markdown fences for source files, 'all' keeps formatting."
 }
 
 func (t *ReadTool) Schema() JSONSchema {
@@ -155,7 +155,7 @@ func (t *ReadTool) Schema() JSONSchema {
 				Properties: map[string]Property{
 					"extract": {
 						Type:        "string",
-						Description: "What to extract: 'all', 'code', 'explanation'",
+						Description: "What to extract: 'all' (keeps markdown), 'code' (strips fences for clean source), 'explanation' (docs only)",
 						Enum:        []string{"all", "code", "explanation"},
 					},
 					"max_tokens": {
@@ -164,7 +164,11 @@ func (t *ReadTool) Schema() JSONSchema {
 					},
 					"write_to": {
 						Type:        "string",
-						Description: "Write content to this file path instead of returning it (SAVES TOKENS - content is written directly without being returned to Claude Code!)",
+						Description: "ABSOLUTE file path to write content directly to disk (saves tokens - no content returned). Example: '/home/user/project/new_file.go' not 'new_file.go'",
+					},
+					"block_index": {
+						Type:        "number",
+						Description: "When multiple code blocks exist, specify which one to extract (0-based index). Use after getting block list warning.",
 					},
 				},
 			},

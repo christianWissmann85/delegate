@@ -3,9 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
-	"github.com/christianwissmann85/delegate/internal/analytics"
 	"github.com/christianwissmann85/delegate/internal/config"
 	"github.com/christianwissmann85/delegate/internal/extractor"
 	"github.com/christianwissmann85/delegate/internal/handlers"
@@ -16,12 +14,11 @@ import (
 
 // Server handles MCP protocol communication
 type Server struct {
-	config    *config.Config
-	protocol  *Protocol
-	tools     map[string]Tool
-	logger    *logger.Logger
-	storage   handlers.Storage
-	analytics *analytics.Logger
+	config   *config.Config
+	protocol *Protocol
+	tools    map[string]Tool
+	logger   *logger.Logger
+	storage  handlers.Storage
 }
 
 // NewServer creates a new MCP server
@@ -36,17 +33,6 @@ func NewServer(cfg *config.Config) *Server {
 
 	// Initialize protocol handler
 	s.protocol = NewProtocol(s, logLevel)
-
-	// Initialize analytics logger
-	analyticsLogger, err := analytics.New(filepath.Join(cfg.OutputDir, "logs"))
-	if err != nil {
-		s.logger.Error("Failed to initialize analytics logger", map[string]interface{}{
-			"error": err.Error(),
-		})
-		// Continue without analytics - it's not critical
-	} else {
-		s.analytics = analyticsLogger
-	}
 
 	// Register tools
 	if err := s.registerTools(); err != nil {
@@ -66,11 +52,6 @@ func (s *Server) Start(ctx context.Context) error {
 		"output_dir":       s.config.OutputDir,
 		"timeout_seconds":  s.config.TimeoutSeconds,
 	})
-
-	// Ensure analytics logger is closed on shutdown
-	if s.analytics != nil {
-		defer s.analytics.Close()
-	}
 
 	// Start cleanup routine
 	if store, ok := s.storage.(*storage.FileStore); ok {
@@ -112,10 +93,10 @@ func (s *Server) registerTools() error {
 	extractFactoryAdapter := handlers.NewExtractorFactoryAdapter(extractFactory)
 
 	// Create the new handlers for the 4-tool architecture
-	submitTaskHandler := handlers.NewSubmitTaskHandler(providerFactory, store, extractFactoryAdapter, s.analytics)
-	getMetadataHandler := handlers.NewGetMetadataHandler(store, s.analytics)
-	getContentHandler := handlers.NewGetContentHandler(store, s.analytics)
-	writeFileHandler := handlers.NewWriteFileHandler(store, s.analytics) // New handler for writing files
+	submitTaskHandler := handlers.NewSubmitTaskHandler(providerFactory, store, extractFactoryAdapter)
+	getMetadataHandler := handlers.NewGetMetadataHandler(store)
+	getContentHandler := handlers.NewGetContentHandler(store)
+	writeFileHandler := handlers.NewWriteFileHandler(store) // New handler for writing files
 
 	// Register all 4 new tools
 	tools := []Tool{

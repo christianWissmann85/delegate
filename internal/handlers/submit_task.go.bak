@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/christianwissmann85/delegate/internal/analytics"
 	"github.com/christianwissmann85/delegate/internal/models"
 )
 
@@ -18,17 +17,15 @@ type SubmitTaskHandler struct {
 	providers        ProviderFactory
 	storage          Storage
 	extractorFactory ExtractorFactory
-	analytics        *analytics.Logger
 }
 
 
 // NewSubmitTaskHandler creates a new, configured SubmitTaskHandler.
-func NewSubmitTaskHandler(providers ProviderFactory, storage Storage, extractorFactory ExtractorFactory, analytics *analytics.Logger) *SubmitTaskHandler {
+func NewSubmitTaskHandler(providers ProviderFactory, storage Storage, extractorFactory ExtractorFactory) *SubmitTaskHandler {
 	return &SubmitTaskHandler{
 		providers:        providers,
 		storage:          storage,
 		extractorFactory: extractorFactory,
-		analytics:        analytics,
 	}
 }
 
@@ -42,42 +39,7 @@ type SubmitTaskRequest struct {
 }
 
 // Handle processes a request to submit a generation task.
-func (h *SubmitTaskHandler) Handle(ctx context.Context, req SubmitTaskRequest) (resp *models.SubmitTaskResponse, err error) {
-	startTime := time.Now()
-
-	// Log analytics for this operation
-	if h.analytics != nil {
-		defer func() {
-			durationMs := time.Since(startTime).Milliseconds()
-			success := err == nil
-
-			logEntry := analytics.LogEntry{
-				"event_type":    "task_submitted",
-				"model":         req.Model,
-				"prompt_length": len(req.Prompt),
-				"file_count":    len(req.Files),
-				"duration_ms":   durationMs,
-				"success":       success,
-			}
-
-			if success && resp != nil {
-				logEntry["output_id"] = resp.OutputID
-			}
-
-			if !success && err != nil {
-				if delegateErr, ok := err.(*models.DelegateError); ok {
-					logEntry["error_type"] = delegateErr.Code
-					logEntry["error"] = delegateErr.Message
-				} else {
-					logEntry["error_type"] = models.ErrorTypeInternal
-					logEntry["error"] = err.Error()
-				}
-			}
-
-			h.analytics.Log(logEntry)
-		}()
-	}
-
+func (h *SubmitTaskHandler) Handle(ctx context.Context, req SubmitTaskRequest) (*models.SubmitTaskResponse, error) {
 	if err := h.validateRequest(req); err != nil {
 		return nil, models.AsDelegateError(err)
 	}
@@ -160,7 +122,7 @@ func (h *SubmitTaskHandler) Handle(ctx context.Context, req SubmitTaskRequest) (
 		return nil, models.NewDelegateError(models.ErrorTypeInternal, "Failed to get working directory", err)
 	}
 
-	resp = &models.SubmitTaskResponse{
+	resp := &models.SubmitTaskResponse{
 		OutputID:         output.ID,
 		WorkingDirectory: wd,
 	}

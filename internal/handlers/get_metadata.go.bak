@@ -5,9 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/christianwissmann85/delegate/internal/analytics"
 	"github.com/christianwissmann85/delegate/internal/models"
 )
 
@@ -15,15 +13,13 @@ import (
 // It retrieves structured metadata and a content analysis for a given output_id,
 // allowing an agent to inspect an output's properties without fetching its full content.
 type GetMetadataHandler struct {
-	storage   Storage
-	analytics *analytics.Logger
+	storage Storage
 }
 
 // NewGetMetadataHandler creates a new, configured GetMetadataHandler.
-func NewGetMetadataHandler(storage Storage, analytics *analytics.Logger) *GetMetadataHandler {
+func NewGetMetadataHandler(storage Storage) *GetMetadataHandler {
 	return &GetMetadataHandler{
-		storage:   storage,
-		analytics: analytics,
+		storage: storage,
 	}
 }
 
@@ -33,41 +29,7 @@ type GetMetadataRequest struct {
 }
 
 // Handle processes a request to get output metadata.
-func (h *GetMetadataHandler) Handle(ctx context.Context, req GetMetadataRequest) (resp *models.GetOutputMetadataResponse, err error) {
-	startTime := time.Now()
-
-	// Log analytics for this operation
-	if h.analytics != nil {
-		defer func() {
-			durationMs := time.Since(startTime).Milliseconds()
-			success := err == nil
-
-			logEntry := analytics.LogEntry{
-				"event_type":  "metadata_queried",
-				"output_id":   req.OutputID,
-				"duration_ms": durationMs,
-				"success":     success,
-			}
-
-			if success && resp != nil {
-				logEntry["size_kb"] = resp.Metadata.SizeKB
-				logEntry["is_truncated"] = resp.Metadata.IsTruncated
-			}
-
-			if !success && err != nil {
-				if delegateErr, ok := err.(*models.DelegateError); ok {
-					logEntry["error_type"] = delegateErr.Code
-					logEntry["error"] = delegateErr.Message
-				} else {
-					logEntry["error_type"] = models.ErrorTypeInternal
-					logEntry["error"] = err.Error()
-				}
-			}
-
-			h.analytics.Log(logEntry)
-		}()
-	}
-
+func (h *GetMetadataHandler) Handle(ctx context.Context, req GetMetadataRequest) (*models.GetOutputMetadataResponse, error) {
 	if err := ValidateOutputID(req.OutputID); err != nil {
 		return nil, models.AsDelegateError(err)
 	}
@@ -123,7 +85,7 @@ func (h *GetMetadataHandler) Handle(ctx context.Context, req GetMetadataRequest)
 	}
 
 	// Assemble the final structured response.
-	resp = &models.GetOutputMetadataResponse{
+	resp := &models.GetOutputMetadataResponse{
 		Metadata:        metadataBlock,
 		ContentAnalysis: contentAnalysisBlock,
 	}

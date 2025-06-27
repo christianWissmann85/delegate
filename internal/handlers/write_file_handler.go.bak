@@ -6,9 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/christianwissmann85/delegate/internal/analytics"
 	"github.com/christianwissmann85/delegate/internal/models"
 )
 
@@ -29,66 +27,18 @@ type WriteFileOptions struct {
 // WriteFileHandler implements the delegate_write_output_to_file tool.
 // It writes the content of an output artifact directly to a specified file path.
 type WriteFileHandler struct {
-	storage   Storage
-	analytics *analytics.Logger
+	storage Storage
 }
 
 // NewWriteFileHandler creates a new WriteFileHandler.
-func NewWriteFileHandler(storage Storage, analytics *analytics.Logger) *WriteFileHandler {
+func NewWriteFileHandler(storage Storage) *WriteFileHandler {
 	return &WriteFileHandler{
-		storage:   storage,
-		analytics: analytics,
+		storage: storage,
 	}
 }
 
 // Handle processes the request to write output content to a file.
-func (h *WriteFileHandler) Handle(ctx context.Context, req WriteFileRequest) (resp *models.WriteOutputToFileResponse, err error) {
-	startTime := time.Now()
-
-	// Log analytics for this operation
-	if h.analytics != nil {
-		defer func() {
-			durationMs := time.Since(startTime).Milliseconds()
-			success := err == nil
-
-			logEntry := analytics.LogEntry{
-				"event_type":  "file_written",
-				"output_id":   req.OutputID,
-				"write_to":    req.WriteTo,
-				"duration_ms": durationMs,
-				"success":     success,
-			}
-
-			// Log options if provided
-			if req.Options.Extract != "" {
-				logEntry["extract_option"] = req.Options.Extract
-			}
-			if req.Options.BlockIndex != nil {
-				logEntry["block_index"] = *req.Options.BlockIndex
-			}
-			if req.Options.Language != nil {
-				logEntry["language"] = *req.Options.Language
-			}
-
-			if success && resp != nil {
-				logEntry["bytes_written"] = resp.BytesWritten
-				logEntry["tokens_saved"] = resp.BytesWritten / 4 // Rough estimate
-			}
-
-			if !success && err != nil {
-				if delegateErr, ok := err.(*models.DelegateError); ok {
-					logEntry["error_type"] = delegateErr.Code
-					logEntry["error"] = delegateErr.Message
-				} else {
-					logEntry["error_type"] = models.ErrorTypeInternal
-					logEntry["error"] = err.Error()
-				}
-			}
-
-			h.analytics.Log(logEntry)
-		}()
-	}
-
+func (h *WriteFileHandler) Handle(ctx context.Context, req WriteFileRequest) (*models.WriteOutputToFileResponse, error) {
 	// 1. Validate Request Parameters
 	if err := ValidateOutputID(req.OutputID); err != nil {
 		return nil, models.AsDelegateError(err)

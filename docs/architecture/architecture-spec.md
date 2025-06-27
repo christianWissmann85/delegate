@@ -1,7 +1,9 @@
-# **Delegate: Architecture & Technical Specification v1.0**
+# **Delegate: Architecture & Technical Specification**
 
-**Status:** Final | **Version:** 1.0 | **Date:** 2025-06-20  
-**Implementation Status:** Day 6 of 21 (MCP Foundation + Storage + Gemini Provider Complete)
+**Status:** Final | **Version:** 2.0 | **Date:** 2025-06-27  
+**Implementation Status:** Production/Deployed
+
+**Reviewed by Christian Wissmann for Delegate V2.0**
 
 ## **1. Overview & Philosophy**
 
@@ -11,7 +13,7 @@
 
 **Core Philosophy (The "No Scope Creep" Mandate):**
 
-* **Minimalism:** The server exposes exactly three MCP tools: invoke, check, and read. It does one thing and does it perfectly.
+* **Minimalism:** The server exposes exactly four MCP tools: submit_task, get_output_metadata, get_output_content, and write_output_to_file. It does one thing and does it perfectly.
 * **Reliability:** The system is designed for zero maintenance. With a Go-based MCP server, static typing, and no external runtime dependencies, it is built to be unbreakable.
 * **Statelessness:** Each tool call is an atomic, independent transaction. There are no sessions, no conversation history, and no state management.
 * **Robustness:** The server is resilient to network latency and provider timeouts through smart internal stream handling.
@@ -30,61 +32,61 @@ Delegate runs as an MCP server that Claude Code connects to via the Model Contex
                               |               ^
                               | (read/write)  |
                               v               |
-            ┌──────────────────────────────────────────┐
+            ┌──────────────────────────────────────────────┐
             │       Local Filesystem (.delegate/)      │
-            └──────────────────────────────────────────┘
+            └──────────────────────────────────────────────┘
 ```
 
 **Execution Flow:**
 
 1. Claude Code initiates an MCP connection to the Delegate server
-2. Claude Code calls one of three tools: `invoke`, `check`, or `read`
+2. Claude Code calls one of four tools: `delegate_submit_task`, `delegate_get_output_metadata`, `delegate_get_output_content`, or `delegate_write_output_to_file`
 3. Delegate processes the request:
-   - For `invoke`: Calls the appropriate LLM API, streams the response, saves to disk
-   - For `check`: Reads file metadata, analyzes content structure
-   - For `read`: Extracts and returns requested content
-4. Delegate returns the result via MCP protocol
+   - For `submit_task`: Calls the appropriate LLM API, streams the response, saves to disk, returns only an output_id
+   - For `get_output_metadata`: Reads file metadata and analyzes content structure without loading content
+   - For `get_output_content`: Extracts and returns requested content into Claude's context (token cost)
+   - For `write_output_to_file`: Writes content directly to disk without token consumption
+4. Delegate returns structured JSON responses via MCP protocol
 5. Files persist in `.delegate/` directory for later retrieval
 
 ## **3. MCP Protocol & Tool Specification**
 
-Communication is handled via the Model Context Protocol (MCP), exposing three tools to Claude Code.
+Communication is handled via the Model Context Protocol (MCP), exposing four tools to Claude Code. Each tool has a single, clear purpose with predictable behavior.
 
 ### **Tool Definitions**
 
-#### **delegate_invoke**
+#### **delegate_submit_task**
 
-* **Description:** The primary tool to delegate a task to an external LLM. It generates an output file and returns metadata about it. It does **not** return the content itself.
+* **Description:** STEP 1: Submits a generation task to an external LLM (~50-100 tokens). This is an asynchronous operation that creates a temporary output artifact and returns a unique output_id. The content is NOT returned directly. Use other delegate_* tools to access the output.
 * **Parameters:**
   ```typescript
   {
     model: string,        // "gemini-2.5-flash" | "gemini-2.5-pro" | "claude-sonnet-4-20250514" | "claude-opus-4-20250514"
     prompt: string,       // Natural language task description
-    files?: string[],     // Optional: Paths to context files
-    max_tokens?: number   // Optional: Maximum tokens to generate
+    files?: string[],     // Optional: Relative paths to context files (e.g., "src/model.go", "docs/api.md")
+    max_tokens?: number,  // Optional: Maximum tokens to generate
+    timeout?: number      // Optional: Timeout in seconds
   }
   ```
 
 * **Returns:**
   ```typescript
   {
-    id: string,          // "out_20250620_203000"
-    path: string,        // "/path/to/repo/.delegate/outputs/out_20250620_203000.json"
-    size_kb: number,     // 1.8
-    model: string        // Echo of the model used
+    output_id: string,         // "out_20250620_203000"
+    working_directory: string  // "/home/user/project"
   }
   ```
 
 * **Internal Implementation Detail: Server-Side Streaming**
-  To prevent network timeouts on long-running LLM generations, the invoke handler MUST use the provider's streaming API endpoint. The implementation will:
+  To prevent network timeouts on long-running LLM generations, the submit_task handler MUST use the provider's streaming API endpoint. The implementation will:
   1. Initiate a streaming request to the LLM provider
   2. As data chunks are received, write them directly to a temporary file on disk
   3. Once the stream is complete, process the file and create the final output artifact
   4. This streaming is invisible to Claude Code - it only sees the final result
 
-#### **delegate_check**
+#### **delegate_get_output_metadata**
 
-* **Description:** Inspects a previously generated output file without reading its content. Provides crucial metadata for Claude Code to decide *if* and *how* to read the file.
+* **Description:** STEP 2 (Optional): Retrieves structured metadata about an output artifact (~20 tokens). Use this to decide whether to retrieve content into context or write directly to a file. This tool does NOT return the content itself.
 * **Parameters:**
   ```typescript
   {
@@ -95,18 +97,31 @@ Communication is handled via the Model Context Protocol (MCP), exposing three to
 * **Returns:**
   ```typescript
   {
-    bytes: number,           // 1843
-    size_kb: number,         // 1.8
-    estimated_tokens: number,// 460
-    has_code: boolean,       // true
-    has_explanation: boolean,// true
-    languages: string[]      // ["javascript"]
+    metadata: {
+      output_id: string,
+      status: "COMPLETED" | "IN_PROGRESS" | "FAILED",
+      size_kb: number,
+      line_count: number,
+      token_estimate: number,
+      is_truncated: boolean,
+      truncation_reason: string | null
+    },
+    content_analysis: {
+      blocks_found: number,
+      blocks: Array<{
+        index: number,
+        language: string,
+        size_kb: number,
+        lines: number,
+        preview: string      // First line of the block
+      }>
+    }
   }
   ```
 
-#### **delegate_read**
+#### **delegate_get_output_content**
 
-* **Description:** Retrieves the actual content from an output file, with options to extract specific parts and limit token count.
+* **Description:** Retrieves the full or partial content of an output artifact into the agent's context (~30+ tokens plus content). This operation consumes tokens proportional to the content size. Use options to extract specific parts (e.g., extract: 'code').
 * **Parameters:**
   ```typescript
   {
@@ -114,7 +129,8 @@ Communication is handled via the Model Context Protocol (MCP), exposing three to
     options?: {
       extract?: "all" | "code" | "explanation",  // Default: "all"
       max_tokens?: number,                        // Truncate at this limit
-      language?: string                           // Filter to specific language
+      block_index?: number,                       // For multi-block outputs, select specific block
+      language?: string                           // Filter code blocks by language
     }
   }
   ```
@@ -123,10 +139,40 @@ Communication is handled via the Model Context Protocol (MCP), exposing three to
   ```typescript
   {
     content: string,         // The extracted content
-    truncated: boolean,      // true if max_tokens was hit
-    tokens: number,          // Actual token count returned
-    extraction: string,      // What was extracted
-    language?: string        // If language filter was applied
+    metadata: {
+      output_id: string,
+      tokens_returned: number,
+      is_truncated: boolean,
+      truncation_reason: string | null
+    }
+  }
+  ```
+
+#### **delegate_write_output_to_file**
+
+* **Description:** Writes the content of an output artifact directly to a specified file path (relative to working directory). This operation consumes ZERO content tokens. Use options to select specific parts to write (e.g., extract: 'code', block_index: 0).
+* **Parameters:**
+  ```typescript
+  {
+    output_id: string,
+    write_to: string,        // Relative file path (e.g., "src/component.jsx", "tmp/output.go")
+    options?: {
+      extract?: "all" | "code" | "explanation",  // Default: "all"
+      block_index?: number,                       // For multi-block outputs, select specific block
+      language?: string                           // Filter code blocks by language
+    }
+  }
+  ```
+
+* **Returns:**
+  ```typescript
+  {
+    success: boolean,
+    path: string,            // Relative path of file written
+    absolute_path: string,   // Absolute path of file written
+    bytes_written: number,
+    message: string,         // Human-readable success message
+    working_directory: string
   }
   ```
 
@@ -197,7 +243,7 @@ type LLMProvider interface {
 
 ### **Error Handling**
 
-Delegate implements a simple, transparent error handling strategy that empowers Claude Code to make intelligent decisions:
+Delegate implements a structured, transparent error handling strategy that empowers Claude Code to make intelligent decisions. All errors are returned as structured JSON for reliable programmatic handling.
 
 **Core Principles:**
 - Delegate performs basic retries (3 attempts with exponential backoff: 1s, 2s, 4s)
@@ -205,24 +251,29 @@ Delegate implements a simple, transparent error handling strategy that empowers 
 - No automatic provider switching or complex orchestration
 - Let Claude Code decide the best recovery action based on context
 
-**Error Response Structure:**
-```go
-type DelegateError struct {
-    Type            string   `json:"error"`           // rate_limited, provider_unavailable, timeout, etc.
-    Provider        string   `json:"provider"`        // Which provider failed
-    Code            int      `json:"error_code"`      // HTTP status code if applicable
-    Message         string   `json:"message"`         // Human-readable description
-    RetryAfter      int      `json:"retry_after"`     // Seconds to wait (if provided by API)
-    Alternatives    []string `json:"alternative_models"` // Other models that could be tried
+**Structured Error Response Format:**
+```json
+{
+  "error": {
+    "code": "PROVIDER_ERROR",
+    "message": "Rate limit exceeded for gemini-2.5-flash",
+    "details": {
+      "provider": "google",
+      "model": "gemini-2.5-flash",
+      "http_status": 429,
+      "retry_after": 60,
+      "alternative_models": ["gemini-2.5-pro", "claude-sonnet-4-20250514"]
+    }
+  }
 }
 ```
 
-**Error Types:**
-- `rate_limited` (429): Provider rate limit exceeded
-- `provider_unavailable` (503): Service temporarily unavailable
-- `timeout` (504): Request exceeded timeout limit
-- `provider_error` (500): Internal provider error
-- `network_error`: Connection or network failure
+**Error Codes:**
+- `INVALID_REQUEST`: Bad input parameters or validation failure
+- `OUTPUT_NOT_FOUND`: Requested output_id doesn't exist or has expired
+- `PROVIDER_ERROR`: Any error from the LLM provider (rate limits, timeouts, etc.)
+- `FILE_WRITE_FAILED`: Unable to write to the specified file path
+- `PATH_TRAVERSAL_ATTEMPT`: Security violation in file path
 
 **Recovery Strategy:**
 This approach keeps Delegate simple while giving Claude Code the flexibility to:
@@ -233,7 +284,7 @@ This approach keeps Delegate simple while giving Claude Code the flexibility to:
 
 ## **7. Code Project Structure**
 
-The Go implementation maintains clean separation of concerns:
+The Go implementation maintains clean separation of concerns, reflecting the new 4-tool architecture:
 
 ```
 delegate/
@@ -249,12 +300,14 @@ delegate/
     │
     ├── config/                 // Configuration management
     │   ├── config.go           // Environment variable loading
-    │   └── validate.go         // Configuration validation
+    │   ├── validate.go         // Configuration validation
+    │   └── languages.json      // Language detection configuration
     │
     ├── handlers/               // Business logic for each tool
-    │   ├── invoke.go           // Invoke tool implementation
-    │   ├── check.go            // Check tool implementation
-    │   ├── read.go             // Read tool implementation
+    │   ├── submit_task.go      // Submit task handler implementation
+    │   ├── get_metadata.go     // Get metadata handler implementation
+    │   ├── get_content.go      // Get content handler implementation
+    │   ├── write_file.go       // Write file handler implementation
     │   └── types.go            // Shared handler types
     │
     ├── providers/              // LLM provider integrations
@@ -281,7 +334,8 @@ delegate/
     ├── models/                 // Shared data structures
     │   ├── output.go           // Output file structure
     │   ├── request.go          // Request types
-    │   └── errors.go           // Error types and codes
+    │   ├── responses.go        // Structured response types
+    │   └── errors.go           // Error types and AsDelegateError helper
     │
     └── logger/                 // Structured logging
         └── logger.go           // JSON logging to stderr
@@ -298,58 +352,26 @@ delegate/
    - Path traversal prevention on all file operations
    - Output files use sanitized IDs
    - Automatic cleanup of files older than 24 hours
+   - Explicit security comments in write_file handler
 
 3. **Input Validation:**
    - Model IDs validated against allowlist
    - File paths checked for directory traversal
    - Prompt length limited to provider maximums
+   - Relative paths resolved safely within working directory
 
 ## **9. Performance Characteristics**
 
 | Operation | Typical Latency | Notes |
 |-----------|----------------|-------|
-| `invoke` | 2-30 seconds | Depends on prompt complexity and model |
-| `check` | <100ms | File system metadata only |
-| `read` | <500ms | Depends on content size and extraction |
+| `submit_task` | 2-30 seconds | Depends on prompt complexity and model |
+| `get_metadata` | <100ms | File system metadata only |
+| `get_content` | <500ms | Depends on content size and extraction |
+| `write_file` | <200ms | Direct file write, no content parsing |
 
 **Resource Usage:**
 - Memory: <50MB baseline, streaming prevents large allocations
 - Disk: Configurable output directory, automatic cleanup
 - CPU: Minimal, mostly I/O bound
 
-## **10. Implementation Status**
-
-### **Completed Components (Day 1-2)**
-- ✅ **MCP Server Foundation**
-  - JSON-RPC protocol handling over stdio
-  - Tool registration and routing
-  - Client initialization handling
-- ✅ **Structured Logging**
-  - JSON format to stderr
-  - Component-based logging with levels
-  - Debug/Info/Warn/Error support
-- ✅ **Configuration Management**
-  - Environment variable loading
-  - Validation and defaults
-  - API key detection
-- ✅ **Project Structure**
-  - All modules created with clear boundaries
-  - Interfaces defined for all components
-  - No circular dependencies
-
-### **Next Steps (Day 3-4)**
-- Storage layer implementation
-- Output ID generation
-- File persistence
-- Cleanup routine
-
-## **11. Future Considerations (Post v1.0)**
-
-Per the "No Scope Creep" mandate, these are **not** in v1.0:
-- Batch operations (invoke multiple prompts)
-- Caching of responses
-- Additional providers
-- Progress indicators
-- Analytics or metrics
-
-The focus remains on doing three things perfectly: invoke, check, and read.
+The focus remains on doing four things perfectly: submit_task, get_output_metadata, get_output_content, and write_output_to_file.

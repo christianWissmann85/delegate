@@ -37,7 +37,7 @@ echo ""
 echo -e "${BLUE}=== HOW TO USE DELEGATE IN A PROJECT ===${NC}"
 echo ""
 echo -e "${YELLOW}STEP 1: Navigate to your project${NC}"
-echo -e "   ${GREEN}cd /path/to/your/project${NC}"
+echo -e "   ${GREEN}cd your-project-directory${NC}"
 echo ""
 echo -e "${YELLOW}STEP 2: Add Delegate to THIS project (one-time setup)${NC}"
 echo -e "   ${GREEN}claude mcp add delegate -s project -- delegate${NC}"
@@ -45,10 +45,11 @@ echo ""
 echo -e "${YELLOW}STEP 3: Start Claude Code${NC}"
 echo -e "   ${GREEN}claude${NC}"
 echo ""
-echo -e "${YELLOW}STEP 4: Use Delegate tools in Claude!${NC}"
-echo -e "   ${GREEN}delegate_invoke(model: \"gemini-2.5-flash\", prompt: \"Create a REST API\")${NC}"
-echo -e "   ${GREEN}delegate_check(output_id)  # See size without reading${NC}"
-echo -e "   ${GREEN}delegate_read(output_id, options: {write_to: \"api.go\"})  # Save without tokens!${NC}"
+echo -e "${YELLOW}STEP 4: Use Delegate's 4 powerful tools!${NC}"
+echo -e "   ${GREEN}1. submit_task(model: \"gemini-2.5-flash\", prompt: \"Create a REST API\")${NC}"
+echo -e "   ${GREEN}2. get_output_metadata(output_id)  # Check size/blocks without tokens${NC}"
+echo -e "   ${GREEN}3. write_output_to_file(output_id, write_to: \"api.go\")  # ZERO tokens!${NC}"
+echo -e "   ${GREEN}4. get_output_content(output_id)  # Or read into context${NC}"
 echo ""
 echo -e "${BLUE}=== QUICK REFERENCE ===${NC}"
 echo -e "List MCP servers:     ${GREEN}claude mcp list${NC}"
@@ -59,7 +60,7 @@ echo -e "${BLUE}💡 REMEMBER:${NC}"
 echo -e "• MCP setup is PER-PROJECT (not global)"
 echo -e "• Run 'claude mcp add' in EACH new project"
 echo -e "• Delegate binary is already installed system-wide"
-echo -e "• No need to copy files - just add MCP connection!"
+echo -e "• Use relative paths like 'src/main.go', not absolute paths!"
 echo ""
 echo -e "${GREEN}🚀 Ready to save tokens! Check the comments in this script for MORE details! 🚀${NC}"
 
@@ -81,12 +82,25 @@ echo -e "${GREEN}🚀 Ready to save tokens! Check the comments in this script fo
 # 3. When you type "claude" in a directory, it looks for MCP configurations
 # 4. Claude Code then connects to configured MCP servers and can use their tools
 #
-# The Delegate MCP Server
-# -----------------------
-# Delegate is an MCP server that provides 3 tools to Claude:
-# - delegate_invoke: Generate code/content using other AI models (saves tokens!)
-# - delegate_check: Check output size without reading it (saves tokens!)
-# - delegate_read: Read generated content (with optional write_to for saving tokens!)
+# The New Delegate MCP Server (4-Tool API v2.0)
+# ---------------------------------------------
+# Delegate now provides 4 clear, single-purpose tools to Claude:
+#
+# 1. submit_task: Generate code/content using other AI models
+#    - Returns only an output_id (~50 tokens)
+#    - Asynchronous operation, content stored temporarily
+#
+# 2. get_output_metadata: Check output details without reading content
+#    - Returns size, line count, token estimate, block analysis
+#    - Perfect for deciding next steps (~20-50 tokens)
+#
+# 3. write_output_to_file: Write content directly to disk
+#    - ZERO token cost! Content never enters Claude's context
+#    - Accepts relative paths like "src/component.jsx"
+#
+# 4. get_output_content: Read content into Claude's context
+#    - High token cost (proportional to content size)
+#    - Use when you need to review/modify the generated content
 #
 # How MCP Connections Work
 # ------------------------
@@ -98,7 +112,7 @@ echo -e "${GREEN}🚀 Ready to save tokens! Check the comments in this script fo
 # Setting Up MCP for a New Project - Step by Step
 # -----------------------------------------------
 # 1. Navigate to your project directory:
-#    cd /path/to/your/project
+#    cd your-awesome-project
 #
 # 2. Add Delegate as an MCP server for this project:
 #    claude mcp add delegate -s project -- delegate
@@ -144,6 +158,112 @@ echo -e "${GREEN}🚀 Ready to save tokens! Check the comments in this script fo
 # │   └── outputs/          # Where Delegate stores generated content
 # └── your-code-files...
 #
+# New 4-Tool Workflow Examples
+# ----------------------------
+#
+# WORKFLOW A: Zero-Token File Generation (Most Common)
+# ---------------------------------------------------
+# Goal: Generate a React component and save it directly to a file
+#
+# 1. submit_task({
+#      model: "gemini-2.5-flash",
+#      prompt: "Create a user profile component with hooks",
+#      files: ["src/types.ts"]  // Relative paths for context
+#    })
+#    → Returns: { output_id: "gen-abc-123", working_directory: "/home/user/project" }
+#
+# 2. write_output_to_file({
+#      output_id: "gen-abc-123",
+#      write_to: "src/components/UserProfile.tsx",  // Relative path
+#      options: { extract: "code" }
+#    })
+#    → File created with ZERO tokens consumed!
+#    → Returns: { success: true, path: "src/components/UserProfile.tsx", bytes_written: 4182 }
+#
+# WORKFLOW B: Smart Multi-Block Handling
+# --------------------------------------
+# Goal: Generate code with documentation, decide what to save
+#
+# 1. submit_task({
+#      model: "gemini-2.5-flash",
+#      prompt: "Create an API with full documentation"
+#    })
+#    → Returns: { output_id: "gen-xyz-456" }
+#
+# 2. get_output_metadata({ output_id: "gen-xyz-456" })
+#    → Returns structured JSON:
+#    {
+#      "metadata": { "size_kb": 25.3, "token_estimate": 6320 },
+#      "content_analysis": {
+#        "blocks_found": 2,
+#        "blocks": [
+#          { "index": 0, "language": "go", "size_kb": 18.7, "preview": "package main" },
+#          { "index": 1, "language": "md", "size_kb": 6.6, "preview": "# API Documentation" }
+#        ]
+#      }
+#    }
+#
+# 3. Based on structured data (no string parsing!), save each block:
+#    write_output_to_file({
+#      output_id: "gen-xyz-456",
+#      write_to: "api/server.go",
+#      options: { block_index: 0 }
+#    })
+#    write_output_to_file({
+#      output_id: "gen-xyz-456", 
+#      write_to: "docs/api.md",
+#      options: { block_index: 1 }
+#    })
+#
+# WORKFLOW C: Review Before Saving
+# --------------------------------
+# Goal: Check generated content before deciding where to save it
+#
+# 1. submit_task(...)  → { output_id: "gen-review-789" }
+#
+# 2. get_output_content({
+#      output_id: "gen-review-789",
+#      options: { max_tokens: 500 }  // Just a preview
+#    })
+#    → Returns: { content: "preview...", metadata: { tokens_returned: 500, is_truncated: true } }
+#
+# 3. After review, save the full content:
+#    write_output_to_file({
+#      output_id: "gen-review-789",
+#      write_to: "final/output.go"
+#    })
+#
+# Path Handling: Always Use Relative Paths
+# ----------------------------------------
+# ✅ CORRECT:   write_to: "src/main.go"
+# ✅ CORRECT:   write_to: "docs/readme.md"  
+# ✅ CORRECT:   files: ["config/settings.json", "src/types.ts"]
+#
+# ❌ WRONG:     write_to: "/home/user/project/src/main.go"
+# ❌ WRONG:     files: ["/absolute/path/to/file.go"]
+#
+# Benefits:
+# - Shorter, cleaner commands
+# - Works across different environments
+# - Reduces token usage
+# - Less error-prone
+#
+# Why 4 Tools Instead of 3?
+# -------------------------
+# The old API had an ambiguous delegate_read that changed behavior based on parameters.
+# Now each tool has ONE clear purpose:
+#
+# OLD (Confusing):
+# - delegate_read(id, {write_to: "file.go"})     # Writes file, returns confirmation
+# - delegate_read(id)                            # Returns content, costs tokens
+#
+# NEW (Clear):
+# - write_output_to_file(id, write_to: "file.go")  # Always writes file
+# - get_output_content(id)                          # Always returns content
+#
+# All responses are now structured JSON instead of strings, making them
+# easier for AI agents to parse and act upon programmatically.
+#
 # Troubleshooting MCP
 # ------------------
 # 1. "Command not found: delegate"
@@ -157,20 +277,26 @@ echo -e "${GREEN}🚀 Ready to save tokens! Check the comments in this script fo
 #    → Restart Claude Code after adding MCP
 #    → Check "claude mcp list" shows delegate
 #
+# 4. "Path traversal" or "Invalid path" errors
+#    → Use relative paths only: "src/file.go" not "/abs/path/file.go"
+#    → Don't use ".." to go above project directory
+#
 # Why Use Delegate via MCP?
 # ------------------------
 # - Save 90%+ tokens on large code generation
 # - Use Gemini's 2M token context window
 # - Generate entire files without consuming Claude's context
-# - Let Claude orchestrate while Gemini does heavy lifting
+# - Let Claude orchestrate while other models do heavy lifting
+# - Clear, predictable API with structured responses
+# - Zero-token file writing for maximum efficiency
 #
-# Example Workflow
-# ---------------
-# 1. cd my-awesome-project
-# 2. claude mcp add delegate -s project -- delegate
-# 3. claude
-# 4. In Claude: delegate_invoke(model: "gemini-2.5-flash", prompt: "Create user.go")
-# 5. In Claude: delegate_read(output_id, options: {write_to: "user.go"})
-# 6. File created with ~1000 tokens saved!
+# Token Cost Breakdown (New API)
+# ------------------------------
+# submit_task:           ~50-100 tokens (just the response)
+# get_output_metadata:   ~20-50 tokens (structured data only)
+# write_output_to_file:  ZERO tokens (content never enters context)
+# get_output_content:    HIGH (proportional to content size)
+#
+# Compare to old workflow where delegate_read always consumed tokens!
 #
 # ============================================================================

@@ -1,5 +1,7 @@
 # Delegate
 
+**Reviewed by Christian Wissmann for Delegate V2.0**
+
 > Transform Claude Code from a coder into a Team Lead. Delegate heavy lifting to other LLMs. Save 90%+ tokens. No fluff. Just works.
 
 ## What is Delegate?
@@ -60,14 +62,14 @@ claude
 
 **Inside Claude Code:**
 ```python
-# Generate entire files without consuming tokens
-delegate_invoke(model: "gemini-2.5-flash", prompt: "Create a complete REST API server with auth")
-delegate_read(output_id, options: {write_to: "server.go"})  # Saves directly - 0 tokens used!
+# The new 2-step workflow - cleaner, simpler, no confusion
+response = delegate_submit_task(model="gemini-2.5-flash", prompt="Create a complete REST API server with auth")
+delegate_write_output_to_file(output_id=response["output_id"], write_to="server.go")  # ZERO tokens!
 
-# Or let Claude review the output first
-delegate_invoke(model: "gemini-2.5-pro", prompt: "Create comprehensive test suite")
-delegate_check(output_id)  # See size without reading
-delegate_read(output_id, options: {extract: "code"})  # Read only what you need
+# Or review before saving
+response = delegate_submit_task(model="gemini-2.5-flash", prompt="Create comprehensive test suite")
+metadata = delegate_get_output_metadata(output_id=response["output_id"])  # Check size/structure
+content = delegate_get_output_content(output_id=response["output_id"], options={"extract": "code"})  # Read what you need
 ```
 
 ## Why Delegate Makes Claude a Team Lead
@@ -92,15 +94,17 @@ delegate_read(output_id, options: {extract: "code"})  # Read only what you need
 ❌ "Write a complete user authentication system with JWT"
 
 # Delegate approach: Claude orchestrates, Gemini codes (500 tokens)
-✅ delegate_invoke(model: "gemini-2.5-flash", prompt: """
-   Create a complete user authentication system:
-   - JWT token generation and validation
-   - Password hashing with bcrypt
-   - User registration/login endpoints
-   - Middleware for protected routes
-   - Proper error handling
-   """)
-✅ delegate_read(output_id, options: {write_to: "auth/auth.go"})
+✅ response = delegate_submit_task(
+    model="gemini-2.5-flash", 
+    prompt="""
+    Create a complete user authentication system:
+    - JWT token generation and validation
+    - Password hashing with bcrypt
+    - User registration/login endpoints
+    - Middleware for protected routes
+    - Proper error handling
+    """)
+✅ delegate_write_output_to_file(output_id=response["output_id"], write_to="auth/auth.go")
 ```
 
 ## Quick Start
@@ -126,13 +130,14 @@ delegate_read(output_id, options: {extract: "code"})  # Read only what you need
 
 [Getting Started Guide →](docs/Getting%20Started%20Guide.md)
 
-## Features
+## Key Features
 
-- ✅ **3 Simple Tools**: invoke, check, read
-- ✅ **4 Powerful Models**: Gemini 2.5 Flash/Pro (1M tokens!), Claude Sonnet/Opus 4
-- ✅ **Token Efficient**: Delegate document analysis, code generation, any heavy lifting
-- ✅ **write_to Magic**: Save outputs directly to disk - ZERO tokens consumed!
-- ✅ **Context Preservation**: Keep Claude Code's context clean for actual work
+- ✅ **4 Clear Tools**: Each tool does ONE thing well - no ambiguity
+- ✅ **Structured JSON Responses**: Every response is parseable, predictable JSON
+- ✅ **Zero-Token File Writes**: `delegate_write_output_to_file` saves directly to disk
+- ✅ **Smart Metadata**: Check output size/structure before deciding what to do
+- ✅ **Relative Paths**: Use simple paths like "src/main.go" - no more absolute path headaches
+- ✅ **4 Powerful Models**: Gemini 2.0 Flash Experimental/1206 (1M tokens!), Claude Sonnet/Opus
 - ✅ **No Complexity**: Read [NO_SCOPE_CREEP.md](docs/development/NO_SCOPE_CREEP.md)
 
 ## Documentation
@@ -147,11 +152,11 @@ delegate_read(output_id, options: {extract: "code"})  # Read only what you need
 
 ## Project Status
 
-✅ **Ready for Use** - All core features implemented and tested. The revolutionary `write_to` feature lets you save massive outputs directly to disk without consuming any tokens!
+✅ **Ready for Use** - All core features implemented and tested. The new 4-tool API makes workflows clearer and more reliable than ever. The `delegate_write_output_to_file` feature lets you save massive outputs directly to disk without consuming any tokens!
 
 ## Philosophy
 
-This project has one sacred document: [NO_SCOPE_CREEP.md](docs/development/NO_SCOPE_CREEP.md). We do three things. We do them well. That's it.
+This project has one sacred document: [NO_SCOPE_CREEP.md](docs/development/NO_SCOPE_CREEP.md). We do four things. We do them well. That's it.
 
 ## Requirements
 
@@ -173,3 +178,4 @@ MIT - Because complexity bad, simplicity good.
 ---
 
 Built with ❤️ and an iron-clad commitment to simplicity.
+

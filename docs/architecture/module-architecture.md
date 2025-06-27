@@ -1,5 +1,7 @@
 # Module Architecture - Clear Boundaries, No Surprises
 
+*Note: Partially Outdated as of V2.0, needs thorough review. Proceed with care.*
+
 ## Core Principles
 1. Each module has ONE responsibility
 2. Dependencies flow inward (handlers → providers/storage, not vice versa)

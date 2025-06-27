@@ -1,13 +1,16 @@
 # **🚀 Delegate: Getting Started Guide**
 
+**Reviewed by Christian Wissmann for Delegate V2.0**
+
 Welcome to Delegate - the dead-simple way to save Claude Code's context tokens by delegating code generation to other LLMs!
 
 ## **What is Delegate?**
 
-Delegate is an MCP server that gives Claude Code three simple tools:
-- **invoke** (STEP 1) - Generate code with Gemini or Claude models, each file <1MB
-- **check** (STEP 2) - See how big the output is before reading
-- **read** (STEP 3) - Get the generated content or write directly to disk (saves tokens!)
+Delegate is an MCP server that gives Claude Code four simple tools:
+- **submit_task** (STEP 1) - Send generation tasks to Gemini or Claude models  
+- **get_output_metadata** (STEP 2) - Check what was generated before reading
+- **get_output_content** (STEP 3) - Get generated content into Claude's context
+- **write_output_to_file** (STEP 4) - Save content directly to disk (saves tokens!)
 
 That's it. No complexity. Just industrial-strength delegation.
 
@@ -74,40 +77,123 @@ Claude Code will automatically use Delegate without consuming its own precious t
    Create a complete REST API for a blog system
    ```
 
-2. **Claude Code uses Delegate to generate it**
+2. **Claude Code submits the task to Delegate**
    ```javascript
    // Behind the scenes:
-   await delegate_invoke({
+   await delegate_submit_task({
      model: "gemini-2.5-flash",
      prompt: "Create a complete REST API...",
-     files: ["/absolute/path/to/requirements.md"]  // Must use absolute paths!
+     files: ["docs/requirements.md", "src/models.go"]  // Now uses relative paths!
    })
    ```
 
-3. **Claude Code checks the size first**
+3. **Claude Code checks what was generated**
    ```javascript
    // Smart token management:
-   const info = await delegate_check({ output_id: "out_123" });
-   // Returns: { size_kb: 15.2, estimated_tokens: 3800, has_code: true }
+   const info = await delegate_get_output_metadata({ output_id: "out_123" });
+   // Returns structured JSON with size, blocks, token estimates
    ```
 
-4. **Claude Code reads strategically**
+4. **Claude Code saves directly to disk (zero tokens!)**
    ```javascript
-   // Only read what's needed:
-   const code = await delegate_read({ 
+   // The magic zero-token workflow:
+   await delegate_write_output_to_file({ 
      output_id: "out_123",
-     options: { extract: "code" }
+     write_to: "src/api/blog.go",
+     options: { extract: "code", block_index: 0 }
    });
    ```
+
+### **🎯 The Zero-Token Workflow**
+
+The most powerful pattern is the **submit → write** workflow:
+
+```javascript
+// Step 1: Submit task (low tokens)
+const { output_id } = await delegate_submit_task({
+  prompt: "Create a React TodoList component with tests",
+  files: ["src/types.ts"]
+});
+
+// Step 2: Write directly to file (ZERO tokens!)
+await delegate_write_output_to_file({
+  output_id,
+  write_to: "src/components/TodoList.tsx",
+  options: { extract: "code", block_index: 0 }
+});
+```
+
+**Result:** You get a complete component file without consuming any of Claude Code's context tokens for the generated content!
+
+## **🆕 Multi-Block Handling Made Simple**
+
+When Delegate generates multiple files or sections, everything is now structured data:
+
+```javascript
+// Check what was generated
+const metadata = await delegate_get_output_metadata({ output_id: "out_123" });
+
+// You get structured JSON like this:
+{
+  "content_analysis": {
+    "blocks_found": 3,
+    "blocks": [
+      { 
+        "index": 0, 
+        "language": "tsx", 
+        "size_kb": 4.3, 
+        "lines": 150, 
+        "preview": "import React, { useState } from 'react';" 
+      },
+      { 
+        "index": 1, 
+        "language": "tsx", 
+        "size_kb": 1.2, 
+        "lines": 45, 
+        "preview": "import { render } from '@testing-library/react';" 
+      },
+      { 
+        "index": 2, 
+        "language": "css", 
+        "size_kb": 0.9, 
+        "lines": 34, 
+        "preview": ".todo-container {" 
+      }
+    ]
+  }
+}
+
+// Now save each block to the right file:
+await delegate_write_output_to_file({ 
+  output_id: "out_123", 
+  write_to: "src/TodoList.tsx", 
+  options: { block_index: 0 } 
+});
+
+await delegate_write_output_to_file({ 
+  output_id: "out_123", 
+  write_to: "src/TodoList.test.tsx", 
+  options: { block_index: 1 } 
+});
+
+await delegate_write_output_to_file({ 
+  output_id: "out_123", 
+  write_to: "src/TodoList.css", 
+  options: { block_index: 2 } 
+});
+```
+
+**No more string parsing!** Everything is structured, predictable JSON.
 
 ## **🎯 Essential Commands**
 
 ### **In Claude Code**
 
 Just talk naturally! Claude Code knows when to use Delegate:
-- "Generate a complex React component"
+- "Generate a complex React component and save it to src/components/"
 - "Create this with Gemini for speed"
 - "Use Claude Opus for this critical payment logic"
+- "Analyze these docs and write a summary to docs/analysis.md"
 
 ### **Check what models are available**
 ```
@@ -124,60 +210,39 @@ tail -f ~/.claude/logs/mcp-server-delegate.log
 ls .delegate/outputs/
 ```
 
-## **🆕 Multi-Block Handling**
-
-When generating code that includes multiple files (like a component + tests + styles), Delegate now intelligently handles them:
-
-```javascript
-// You ask for:
-"Create a React TodoList component with tests and CSS"
-
-// Delegate generates multiple code blocks
-// When you try to save:
-await delegate_read({ 
-  output_id: "out_123", 
-  options: { 
-    extract: "code", 
-    write_to: "/path/to/TodoList.jsx" 
-  }
-});
-
-// You'll see:
-"Warning: Multiple code blocks found (3 blocks). Use block_index option to select specific block.
-
-Block 0: jsx - "import React, { useState } from 'react'..." (4.3 KB, 150 lines)
-Block 1: jsx - "import { render } from '@testing-library/react'..." (1.2 KB, 45 lines)  
-Block 2: css - ".todo-container { ..." (892 bytes, 34 lines)"
-
-// Now you can save each one properly:
-await delegate_read({ output_id: "out_123", options: { extract: "code", write_to: "/path/to/TodoList.jsx", block_index: 0 }});
-await delegate_read({ output_id: "out_123", options: { extract: "code", write_to: "/path/to/TodoList.test.jsx", block_index: 1 }});
-await delegate_read({ output_id: "out_123", options: { extract: "code", write_to: "/path/to/TodoList.css", block_index: 2 }});
-```
-
-This prevents the common problem of multiple files being merged into one!
-
 ## **💡 Pro Tips**
 
-### **1. Let Claude Code Choose**
+### **1. Master the Zero-Token Pattern**
+For any code generation task:
+```
+Generate [something] and save it to [relative/path/file.ext]
+```
+Claude Code will use the `submit_task` → `write_output_to_file` pattern automatically.
+
+### **2. Use Relative Paths**
+All paths are now relative to your project root:
+- ✅ `src/components/Button.tsx`
+- ✅ `docs/api.md`  
+- ✅ `tests/integration/auth.test.js`
+- ❌ `/home/user/project/src/Button.tsx` (old way)
+
+### **3. Let Claude Code Choose Models**
 Don't specify a model unless you have a preference. Claude Code is smart about picking the right one.
 
-### **2. Use Context Files**
-Delegate can include files for context:
+### **4. Include Context Files**
 ```
-Use Delegate to update this API based on the new requirements in requirements.md
+Use Delegate to update this API based on the requirements in docs/spec.md and existing code in src/api/
 ```
 
-### **3. Save Tokens on Large Tasks**
-Perfect for:
+### **5. Perfect for Large Tasks**
 - Generating entire applications
-- Large refactoring tasks
+- Large refactoring tasks  
 - Creating comprehensive test suites
 - Writing extensive documentation
 - **Analyzing multiple large documents**
 - **Processing entire codebases**
 
-### **4. Know Your Models**
+### **6. Know Your Models**
 
 | Need | Use | Why |
 |------|-----|-----|
@@ -201,15 +266,76 @@ Read architecture.md, api-spec.md, database-design.md and tell me about the auth
 
 Do this:
 ```
-Use Delegate to analyze architecture.md, api-spec.md, database-design.md and summarize the authentication strategy
+Use Delegate to analyze architecture.md, api-spec.md, database-design.md and write an auth strategy summary to docs/auth-analysis.md
 ```
 (Claude Code stays fresh for actual work!)
 
 ### **Real-World Scenarios**
-- **"Analyze all test files and tell me what's not covered"**
-- **"Review these 10 RFC documents and extract the key decisions"**
-- **"Read the entire codebase and find inconsistent naming patterns"**
-- **"Process these log files and identify error patterns"**
+- **"Analyze all test files and write a coverage report to docs/testing.md"**
+- **"Review these RFC documents and extract key decisions to decisions.md"**  
+- **"Read the entire codebase and write a refactoring plan to refactor-plan.md"**
+- **"Process these log files and write an error analysis to logs/analysis.txt"**
+
+## **🔧 New Structured Responses**
+
+Everything is now predictable JSON (no more string parsing!):
+
+### **Task Submission**
+```json
+{
+  "output_id": "out_20250620_143022",
+  "working_directory": "/home/user/project"
+}
+```
+
+### **Metadata Check**
+```json
+{
+  "metadata": {
+    "status": "COMPLETED",
+    "size_kb": 15.7,
+    "token_estimate": 3925,
+    "is_truncated": false
+  },
+  "content_analysis": {
+    "blocks_found": 2,
+    "blocks": [
+      {
+        "index": 0,
+        "language": "jsx", 
+        "size_kb": 12.1,
+        "lines": 250,
+        "preview": "import React from 'react';"
+      }
+    ]
+  }
+}
+```
+
+### **File Write Success**
+```json
+{
+  "success": true,
+  "path": "src/component.jsx",
+  "absolute_path": "/home/user/project/src/component.jsx", 
+  "bytes_written": 12388,
+  "message": "Successfully wrote 12.1 KB to src/component.jsx",
+  "working_directory": "/home/user/project"
+}
+```
+
+### **Structured Errors**
+```json
+{
+  "error": {
+    "code": "OUTPUT_NOT_FOUND",
+    "message": "The requested output ID does not exist or has expired.",
+    "details": {
+      "output_id_provided": "invalid-id"
+    }
+  }
+}
+```
 
 ## **🛠️ Configuration**
 
@@ -242,8 +368,13 @@ claude mcp add delegate -s project -- npx -y @christianwissmann85/delegate
 - In `.delegate/outputs/` in your current directory
 - Auto-cleaned after 24 hours
 
+**Q: What's the difference between the old and new API?**
+- **Old (still works):** 3 tools with confusing dual-purpose `delegate_read`
+- **New (recommended):** 4 clear tools with structured JSON responses
+- The old API will show deprecation warnings
+
 **Q: Can I read outputs later?**
-- Yes! Use the output ID with `check` and `read`
+- Yes! Use the output ID with `get_output_metadata` and other tools
 - IDs look like: `out_20250620_143022`
 
 **Q: What if generation times out?**
@@ -268,20 +399,30 @@ claude mcp add delegate -s user -- npx -y @christianwissmann85/delegate
 
 ### **"Output not found"**
 - Outputs expire after 24 hours
-- Check the exact ID from the invoke response
+- Check the exact ID from the submit_task response
+
+### **"Path errors"** 
+- Use relative paths only: `src/file.go` not `/abs/path/to/src/file.go`
+- Paths are relative to your project working directory
 
 ## **📚 Next Steps**
 
-1. **Read the Model Reference Card** - Understand when to use each model
-2. **Check out claude-code-guide-updated.md** - Advanced patterns and examples
-3. **Review NO_SCOPE_CREEP.md** - Understand why Delegate is so simple (and staying that way!)
+1. **Try the zero-token workflow** - Generate code and save it directly to files
+2. **Read the Model Reference** - Understand when to use each model  
+3. **Check out the API Reference** - Deep dive into structured responses
+4. **Explore multi-block handling** - Master complex generations
 
 ## **🎉 You're Ready!**
 
-Start saving tokens and generating more code with Delegate. Remember:
-- **invoke** to generate
-- **check** before reading  
-- **read** strategically
+Start saving tokens and generating more code with Delegate. Remember the simple workflow:
+
+1. **submit_task** → get an output_id
+2. **write_output_to_file** → save directly (zero tokens!)
+
+Or for complex cases:
+1. **submit_task** → get an output_id
+2. **get_output_metadata** → see what was generated  
+3. **write_output_to_file** or **get_output_content** → save or read
 
 Happy coding! 🚀
 

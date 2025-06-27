@@ -56,7 +56,8 @@ func ReadFilesWithLimit(filePaths []string) ([]FileContent, error) {
 		}
 
 		// Open file with size limit
-		content, size, err := readFileWithLimit(absPath, MaxFileSize)
+		// Pass both absolute path (for file operations) and original path (for error messages)
+		content, size, err := readFileWithLimit(absPath, path, MaxFileSize)
 		if err != nil {
 			return nil, err
 		}
@@ -66,8 +67,7 @@ func ReadFilesWithLimit(filePaths []string) ([]FileContent, error) {
 		if totalSize > MaxTotalFileSize {
 			return nil, models.NewDelegateError(
 				models.ErrorTypeInvalidRequest,
-				"",
-				fmt.Sprintf("total file size exceeds limit: %d bytes (max %d)", totalSize, MaxTotalFileSize),
+				fmt.Sprintf("Total file size exceeds limit: %d bytes (max %d)", totalSize, MaxTotalFileSize),
 			)
 		}
 
@@ -81,13 +81,13 @@ func ReadFilesWithLimit(filePaths []string) ([]FileContent, error) {
 }
 
 // readFileWithLimit reads a file with size limit
-func readFileWithLimit(path string, maxSize int64) (string, int64, error) {
-	file, err := os.Open(path)
+// absPath is used for file operations, originalPath is used for error messages
+func readFileWithLimit(absPath string, originalPath string, maxSize int64) (string, int64, error) {
+	file, err := os.Open(absPath)
 	if err != nil {
 		return "", 0, models.NewDelegateError(
 			models.ErrorTypeFileNotFound,
-			"",
-			fmt.Sprintf("cannot open file: %s", path),
+			fmt.Sprintf("Cannot open file: %s", originalPath),
 		)
 	}
 	defer func() {
@@ -99,8 +99,7 @@ func readFileWithLimit(path string, maxSize int64) (string, int64, error) {
 	if err != nil {
 		return "", 0, models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("cannot stat file: %s", path),
+			fmt.Sprintf("Cannot stat file: %s", originalPath),
 		)
 	}
 
@@ -108,8 +107,7 @@ func readFileWithLimit(path string, maxSize int64) (string, int64, error) {
 	if info.Size() > maxSize {
 		return "", 0, models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("file too large: %s (%d bytes, max %d)", path, info.Size(), maxSize),
+			fmt.Sprintf("File too large: %s (%d bytes, max %d)", originalPath, info.Size(), maxSize),
 		)
 	}
 
@@ -119,8 +117,7 @@ func readFileWithLimit(path string, maxSize int64) (string, int64, error) {
 	if err != nil {
 		return "", 0, models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("error reading file: %s", path),
+			fmt.Sprintf("Error reading file: %s", originalPath),
 		)
 	}
 
@@ -128,8 +125,7 @@ func readFileWithLimit(path string, maxSize int64) (string, int64, error) {
 	if int64(len(content)) > maxSize {
 		return "", 0, models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("file too large: %s (exceeded %d bytes while reading)", path, maxSize),
+			fmt.Sprintf("File too large: %s (exceeded %d bytes while reading)", originalPath, maxSize),
 		)
 	}
 

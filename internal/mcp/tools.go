@@ -72,7 +72,7 @@ func (t *SubmitTaskTool) Schema() JSONSchema {
 			},
 			"timeout": {
 				Type:        "number",
-				Description: "Timeout in seconds.",
+				Description: "Timeout in seconds. Default is 180 seconds. Advised to use at least 180 seconds for all tasks, up to 600 seconds maxium. Never use less than 180secs unless you know what you're doing.",
 			},
 		},
 		Required: []string{"model", "prompt"},

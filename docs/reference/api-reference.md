@@ -1,20 +1,23 @@
-# **Delegate API Reference v1.0**
+# **Delegate API Reference v2.0**
 
-**Status:** Final | **Version:** 1.0 | **Date:** 2025-06-20
+**Status:** Final | **Version:** 2.0 | **Date:** 2024-10-27
+
+**Reviewed by Christian Wissmann for Delegate V2.0**
 
 ## **Introduction**
 
 Welcome to the Delegate API Reference.
 
-Delegate is a high-performance, minimalist MCP server designed to act as a token-efficient intermediary for Large Language Model (LLM) tasks. It allows Claude Code to delegate code generation and analysis to external models (Google's Gemini and Anthropic's Claude) without consuming its own context window.
+Delegate is a high-performance, minimalist MCP server designed to act as a token-efficient intermediary for Large Language Model (LLM) tasks. It allows Claude and other AI agents to delegate code generation and analysis to external models (Google's Gemini and Anthropic's Claude) without consuming their own context window.
 
-As an MCP server, Delegate exposes three simple tools that Claude Code can call to manage delegated tasks efficiently.
+As an MCP server, Delegate exposes four simple tools that AI agents can call to manage delegated tasks efficiently.
 
-The core workflow is a simple, three-step process:
+The core workflow is a simple, four-step process:
 
-1. **invoke**: Delegate a task to an LLM. This creates an output artifact but does not return its content.
-2. **check**: Inspect the metadata of the output artifact to understand its size and structure.
-3. **read**: Retrieve the content of the artifact, with options to extract only the necessary parts.
+1. **submit_task**: Delegate a task to an LLM. This creates an output artifact and returns an ID.
+2. **get_output_metadata**: (Optional) Inspect the metadata of the output artifact to understand its size and structure.
+3. **get_output_content**: Retrieve the content into your context (consumes tokens proportional to content size).
+4. **write_output_to_file**: Write content directly to a file (consumes ZERO tokens).
 
 ## **Authentication**
 
@@ -27,16 +30,16 @@ These keys are never transmitted except to their respective providers over HTTPS
 
 ## **MCP Tools**
 
-### **delegate_invoke**
+### **delegate_submit_task**
 
-STEP 1: Delegates a generation task to a specified LLM. This is an asynchronous operation that creates a persistent output artifact and returns a unique ID for it. Does NOT write files directly - stores in temp storage. Each input file must be <1MB, but total can exceed.
+STEP 1: Submits a generation task to an external LLM. This is an asynchronous operation that creates a temporary output artifact and returns a unique `output_id`. The content is NOT returned directly - use other `delegate_*` tools to access the output.
 
 #### **Tool Definition**
 
 ```typescript
 {
-  name: "delegate_invoke",
-  description: "STEP 1: Delegate file generation to save tokens. Does NOT write files directly - stores in temp storage. Returns output_id for use with delegate_check then delegate_read(write_to). IMPORTANT: Use ABSOLUTE paths in 'files' parameter. Each file must be <1MB, but total can exceed.",
+  name: "delegate_submit_task",
+  description: "STEP 1: Submits a generation task to an external LLM (~50-100 tokens). Creates a temporary output artifact and returns a unique output_id. The content is NOT returned directly. Use other delegate_* tools to access the output.",
   parameters: {
     model: {
       type: "string",
@@ -53,27 +56,17 @@ STEP 1: Delegates a generation task to a specified LLM. This is an asynchronous 
       type: "array",
       items: { type: "string" },
       required: false,
-      description: "ABSOLUTE file paths to include as context (not relative!). Example: '/home/user/project/model.go' not 'model.go'. Each file must be <1MB."
+      description: "Relative file paths to include as context (e.g., 'src/model.go', 'docs/api.md'). Each file must be <1MB."
     },
     max_tokens: {
       type: "number",
       required: false,
       description: "Maximum tokens to generate (defaults to model maximum)"
     },
-    code_only: {
-      type: "boolean",
-      required: false,
-      description: "Return only code without explanations (default: false)"
-    },
-    language_hint: {
-      type: "string",
-      required: false,
-      description: "Expected programming language(s) for better extraction"
-    },
     timeout: {
       type: "number",
       required: false,
-      description: "Timeout in seconds (default: 180, max: 600). Suggested: 180s minimum for code, 400s minimum for creative tasks, 400-600s for very large file(s)/bundle(s) analysis."
+      description: "Timeout in seconds (default: 180, max: 600). Suggested: 180s minimum for code, 400s minimum for creative tasks."
     }
   }
 }
@@ -82,22 +75,20 @@ STEP 1: Delegates a generation task to a specified LLM. This is an asynchronous 
 #### **Example Usage**
 
 ```javascript
-const result = await mcp.invoke({
+const result = await mcp.submit_task({
   model: "gemini-2.5-flash",
   prompt: "Create a robust error handling middleware for Express.js",
-  files: ["./src/server.js", "./src/routes.js"],
+  files: ["src/server.js", "src/routes.js"],
   max_tokens: 4000
 });
 ```
 
 #### **Success Response**
 
-```javascript
+```json
 {
-  id: "out_20250620_204000",
-  path: "/Users/you/project/.delegate/outputs/out_20250620_204000.json",
-  size_kb: 2.1,
-  model: "gemini-2.5-flash"
+  "output_id": "out_20241027_103000",
+  "working_directory": "/home/user/project"
 }
 ```
 
@@ -105,26 +96,24 @@ const result = await mcp.invoke({
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Unique identifier for the output, used in `check` and `read` |
-| `path` | string | Absolute path to the stored output artifact |
-| `size_kb` | number | Size of the generated response in kilobytes |
-| `model` | string | The model that was used, echoed back |
+| `output_id` | string | Unique identifier for the output, used in subsequent tools |
+| `working_directory` | string | The server's working directory for relative path resolution |
 
-### **delegate_check**
+### **delegate_get_output_metadata**
 
-STEP 2: Retrieves metadata about a previously generated output artifact without reading its content. Essential for token-efficient operations. Use this after delegate_invoke, before delegate_read to understand size and avoid consuming unnecessary tokens.
+STEP 2 (Optional): Retrieves structured metadata about an output artifact without reading its content. Essential for token-efficient operations. Use this to decide whether to retrieve content into context or write directly to a file.
 
 #### **Tool Definition**
 
 ```typescript
 {
-  name: "delegate_check",
-  description: "STEP 2: Check delegated task status and size before retrieving. Shows token count and file size. Use this after delegate_invoke, before delegate_read. Helps avoid consuming unnecessary tokens.",
+  name: "delegate_get_output_metadata",
+  description: "STEP 2 (Optional): Retrieves structured metadata about an output artifact (~20 tokens). Use this to decide whether to retrieve content into context or write directly to a file. This tool does NOT return the content itself.",
   parameters: {
     output_id: {
       type: "string",
       required: true,
-      description: "The ID returned from invoke"
+      description: "The ID returned from delegate_submit_task"
     }
   }
 }
@@ -133,21 +122,43 @@ STEP 2: Retrieves metadata about a previously generated output artifact without 
 #### **Example Usage**
 
 ```javascript
-const metadata = await mcp.check({
-  output_id: "out_20250620_204000"
+const metadata = await mcp.get_output_metadata({
+  output_id: "out_20241027_103000"
 });
 ```
 
 #### **Success Response**
 
-```javascript
+```json
 {
-  bytes: 2150,
-  size_kb: 2.1,
-  estimated_tokens: 537,
-  has_code: true,
-  has_explanation: true,
-  languages: ["javascript", "json"]
+  "metadata": {
+    "output_id": "out_20241027_103000",
+    "status": "COMPLETED",
+    "size_kb": 15.7,
+    "line_count": 312,
+    "token_estimate": 3925,
+    "is_truncated": false,
+    "truncation_reason": null
+  },
+  "content_analysis": {
+    "blocks_found": 2,
+    "blocks": [
+      {
+        "index": 0,
+        "language": "jsx",
+        "size_kb": 12.1,
+        "lines": 250,
+        "preview": "import React from 'react';"
+      },
+      {
+        "index": 1,
+        "language": "md",
+        "size_kb": 3.6,
+        "lines": 62,
+        "preview": "# Explanation of the component"
+      }
+    ]
+  }
 }
 ```
 
@@ -155,31 +166,36 @@ const metadata = await mcp.check({
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `bytes` | number | Exact size in bytes |
-| `size_kb` | number | Size in kilobytes |
-| `estimated_tokens` | number | Rough token estimate (bytes / 4) |
-| `has_code` | boolean | Whether code blocks were detected |
-| `has_explanation` | boolean | Whether explanatory text was detected |
-| `languages` | array | Programming languages found in code blocks |
-| `is_truncated` | boolean | Whether the output appears to be truncated |
-| `truncation_reason` | string | Reason for truncation detection (if applicable) |
-| `truncation_confidence` | number | Confidence score (0.0-1.0) for truncation detection |
+| `metadata.output_id` | string | The output identifier |
+| `metadata.status` | string | Generation status: "COMPLETED", "IN_PROGRESS", or "FAILED" |
+| `metadata.size_kb` | number | Size of the output in kilobytes |
+| `metadata.line_count` | number | Total number of lines in the output |
+| `metadata.token_estimate` | number | Estimated token count for the full content |
+| `metadata.is_truncated` | boolean | Whether the LLM output was truncated |
+| `metadata.truncation_reason` | string/null | Reason for truncation if applicable |
+| `content_analysis.blocks_found` | number | Number of distinct content blocks detected |
+| `content_analysis.blocks` | array | Array of block metadata objects |
+| `content_analysis.blocks[].index` | number | Zero-based index for referencing this block |
+| `content_analysis.blocks[].language` | string | Programming language or content type |
+| `content_analysis.blocks[].size_kb` | number | Size of this block in kilobytes |
+| `content_analysis.blocks[].lines` | number | Number of lines in this block |
+| `content_analysis.blocks[].preview` | string | First line of the block content |
 
-### **delegate_read**
+### **delegate_get_output_content**
 
-STEP 3: Reads the content of an output artifact, with powerful options for extraction and truncation. The key feature is the 'write_to' option which saves files directly to disk WITHOUT consuming any tokens.
+STEP 3A: Retrieves the full or partial content of an output artifact into the agent's context. This operation consumes tokens proportional to the content size. Use `options` to extract specific parts.
 
 #### **Tool Definition**
 
 ```typescript
 {
-  name: "delegate_read",
-  description: "STEP 3: Get delegated results. WORKFLOW: invoke -> check -> read. To save tokens: use 'write_to' with ABSOLUTE path to write file directly (no content returned). To get content: omit 'write_to'. Use 'extract' for code-only or explanation-only.",
+  name: "delegate_get_output_content",
+  description: "Retrieves the full or partial content of an output artifact into the agent's context (~30+ tokens plus content). This operation consumes tokens proportional to the content size. Use options to extract specific parts (e.g., extract: 'code').",
   parameters: {
     output_id: {
       type: "string",
       required: true,
-      description: "The ID returned from invoke"
+      description: "The ID returned from delegate_submit_task"
     },
     options: {
       type: "object",
@@ -189,23 +205,19 @@ STEP 3: Reads the content of an output artifact, with powerful options for extra
           type: "string",
           enum: ["all", "code", "explanation"],
           default: "all",
-          description: "What to extract from the output"
+          description: "What part to extract from the output"
         },
         max_tokens: {
           type: "number",
-          description: "Truncate to this many tokens"
-        },
-        language: {
-          type: "string",
-          description: "When extracting code, filter to this language"
-        },
-        write_to: {
-          type: "string",
-          description: "ABSOLUTE file path to write content directly to disk (saves tokens - no content returned). Example: '/home/user/project/new_file.go' not 'new_file.go'"
+          description: "Truncate the returned content to this many tokens"
         },
         block_index: {
           type: "number",
-          description: "When multiple code blocks exist, specify which one to extract (0-based index). Use after getting block list warning."
+          description: "For multi-block outputs, select a specific block (0-based index)"
+        },
+        language: {
+          type: "string",
+          description: "Filter code blocks by this programming language"
         }
       }
     }
@@ -216,89 +228,50 @@ STEP 3: Reads the content of an output artifact, with powerful options for extra
 #### **Example Usage**
 
 ```javascript
-// Read everything
-const full = await mcp.read({
-  output_id: "out_20250620_204000"
+// Get all content
+const full = await mcp.get_output_content({
+  output_id: "out_20241027_103000"
 });
 
-// Read only code, max 2000 tokens
-const code = await mcp.read({
-  output_id: "out_20250620_204000",
+// Get only code, max 2000 tokens
+const code = await mcp.get_output_content({
+  output_id: "out_20241027_103000",
   options: {
     extract: "code",
     max_tokens: 2000
   }
 });
 
-// Read only JavaScript code
-const jsOnly = await mcp.read({
-  output_id: "out_20250620_204000",
+// Get specific block from multi-block output
+const component = await mcp.get_output_content({
+  output_id: "out_20241027_103000",
+  options: {
+    extract: "code",
+    block_index: 0
+  }
+});
+
+// Get only JavaScript code
+const jsOnly = await mcp.get_output_content({
+  output_id: "out_20241027_103000",
   options: {
     extract: "code",
     language: "javascript"
-  }
-});
-
-// Write directly to file WITHOUT returning content (ZERO TOKENS!)
-const result = await mcp.read({
-  output_id: "out_20250620_204000",
-  options: {
-    extract: "code",
-    write_to: "src/middleware/error-handler.js"
-  }
-});
-
-// NEW: Handle multiple code blocks
-const multiBlock = await mcp.read({
-  output_id: "out_20250620_204000",
-  options: {
-    extract: "code",
-    write_to: "src/components/TodoList.jsx"
-  }
-});
-// Returns: Warning: Multiple code blocks found (3 blocks)...
-// Block 0: jsx - "import React..." (4.3 KB, 150 lines)
-// Block 1: jsx - "import { render }..." (1.2 KB, 45 lines)
-// Block 2: css - ".todo-container..." (892 bytes, 34 lines)
-
-// Select specific block
-const component = await mcp.read({
-  output_id: "out_20250620_204000",
-  options: {
-    extract: "code",
-    write_to: "src/components/TodoList.jsx",
-    block_index: 0
   }
 });
 ```
 
 #### **Success Response**
 
-```javascript
-// Standard response (when not using write_to)
+```json
 {
-  content: "const errorHandler = (err, req, res, next) => {\n  // ... code here\n}",
-  truncated: false,
-  tokens: 412,
-  extraction: "code",
-  language: "javascript"
-}
-
-// Response when using write_to (no content returned!)
-{
-  content: "Content written to src/middleware/error-handler.js (3.2 KB, ~800 tokens saved)",
-  truncated: false,
-  tokens: 0,
-  extraction: "code",
-  file_written: true
-}
-
-// Multi-block warning response (when extract: "code" with write_to finds multiple blocks)
-{
-  content: "Warning: Multiple code blocks found (3 blocks). Use block_index option to select specific block.\n\nBlock 0: jsx - \"import React, { useState } from 'react'...\" (4.3 KB, 150 lines)\nBlock 1: jsx - \"import { render } from '@testing-library/react'...\" (1.2 KB, 45 lines)\nBlock 2: css - \".todo-container { ...\" (892 bytes, 34 lines)",
-  multiple_blocks: true,
-  block_count: 3,
-  extraction: "code"
+  "content": "import React from 'react';\n\nconst ErrorHandler = ({ error, retry }) => {\n  // Component implementation here\n};\n\nexport default ErrorHandler;",
+  "metadata": {
+    "output_id": "out_20241027_103000",
+    "tokens_returned": 3925,
+    "is_truncated": false,
+    "truncation_reason": null
+  }
 }
 ```
 
@@ -306,36 +279,119 @@ const component = await mcp.read({
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `content` | string | The requested content (or success message when using write_to) |
-| `truncated` | boolean | Whether content was cut off at max_tokens |
-| `tokens` | number | Actual token count returned (0 when using write_to) |
-| `extraction` | string | What was extracted ("all", "code", or "explanation") |
-| `language` | string | Language filter applied (if any) |
-| `file_written` | boolean | True when write_to was used successfully |
-| `multiple_blocks` | boolean | True when multiple code blocks detected with extract:"code" + write_to |
-| `block_count` | number | Number of code blocks found (when multiple_blocks is true) |
+| `content` | string | The requested content |
+| `metadata.output_id` | string | The output identifier |
+| `metadata.tokens_returned` | number | Number of tokens in the returned content |
+| `metadata.is_truncated` | boolean | Whether content was truncated by max_tokens parameter |
+| `metadata.truncation_reason` | string/null | Reason for truncation (e.g., "MAX_TOKENS_REACHED") |
 
-**Truncation Detection:**
+### **delegate_write_output_to_file**
 
-When delegate detects that an LLM output was likely truncated mid-stream, it will:
-1. Store truncation metadata (available via `delegate_check`)
-2. Append a warning message with actionable hints when using `delegate_read`:
-   ```
-   [WARNING: Output was likely truncated (confidence: 0.85). Reason: unclosed brackets/braces]
-   HINTS: Consider one of these actions:
-   - Use write_to option to save the full output to disk (avoids token limits)
-   - Retry with a more specific prompt asking for a smaller response
-   - Use max_tokens with a higher value if you need more content
-   - The response contains incomplete code/data structures
-   ```
+STEP 3B: Writes the content of an output artifact directly to a specified file path (relative to working directory). This operation consumes ZERO content tokens. Use `options` to select specific parts to write.
 
-The truncation detection algorithm checks for:
-- Unclosed quotes, brackets, braces, or code fences
-- Content ending mid-word or mid-JSON structure
-- Trailing operators or incomplete syntax
-- Suspicious size boundaries (e.g., exactly 4096, 8192 bytes)
+#### **Tool Definition**
 
-**For AI Agents:** The hints are designed to help you take appropriate action when truncation is detected. The most common solution is using the `write_to` option to save the full output directly to disk, bypassing token limits entirely.
+```typescript
+{
+  name: "delegate_write_output_to_file",
+  description: "Writes the content of an output artifact directly to a specified file path (relative to working directory). This operation consumes ZERO content tokens. Use options to select specific parts to write (e.g., extract: 'code', block_index: 0).",
+  parameters: {
+    output_id: {
+      type: "string",
+      required: true,
+      description: "The ID returned from delegate_submit_task"
+    },
+    write_to: {
+      type: "string",
+      required: true,
+      description: "Relative file path to write to (e.g., 'src/component.jsx', 'tmp/output.go')"
+    },
+    options: {
+      type: "object",
+      required: false,
+      properties: {
+        extract: {
+          type: "string",
+          enum: ["all", "code", "explanation"],
+          default: "all",
+          description: "What part to extract from the output"
+        },
+        block_index: {
+          type: "number",
+          description: "For multi-block outputs, select a specific block (0-based index)"
+        },
+        language: {
+          type: "string",
+          description: "Filter code blocks by this programming language"
+        }
+      }
+    }
+  }
+}
+```
+
+#### **Example Usage**
+
+```javascript
+// Write all content to file
+const result = await mcp.write_output_to_file({
+  output_id: "out_20241027_103000",
+  write_to: "src/ErrorHandler.jsx"
+});
+
+// Write only code to file
+const codeResult = await mcp.write_output_to_file({
+  output_id: "out_20241027_103000",
+  write_to: "src/components/ErrorHandler.jsx",
+  options: {
+    extract: "code"
+  }
+});
+
+// Write specific block from multi-block output
+const blockResult = await mcp.write_output_to_file({
+  output_id: "out_20241027_103000",
+  write_to: "src/components/TodoList.jsx",
+  options: {
+    extract: "code",
+    block_index: 0
+  }
+});
+
+// Write only JavaScript code
+const jsResult = await mcp.write_output_to_file({
+  output_id: "out_20241027_103000",
+  write_to: "src/utils/helpers.js",
+  options: {
+    extract: "code",
+    language: "javascript"
+  }
+});
+```
+
+#### **Success Response**
+
+```json
+{
+  "success": true,
+  "path": "src/components/ErrorHandler.jsx",
+  "absolute_path": "/home/user/project/src/components/ErrorHandler.jsx",
+  "bytes_written": 12388,
+  "message": "Successfully wrote 12.1 KB to src/components/ErrorHandler.jsx",
+  "working_directory": "/home/user/project"
+}
+```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether the write operation succeeded |
+| `path` | string | The relative path of the file written |
+| `absolute_path` | string | The absolute path of the file written |
+| `bytes_written` | number | Number of bytes written to the file |
+| `message` | string | Human-readable success message |
+| `working_directory` | string | The server's working directory |
 
 ## **Error Handling**
 
@@ -343,11 +399,15 @@ When a tool call fails, Delegate returns structured error information through th
 
 #### **Error Response Structure**
 
-```javascript
+```json
 {
-  error: "Provider API call failed",
-  code: "PROVIDER_ERROR",
-  details: "API key for Gemini is invalid or has expired"
+  "error": {
+    "code": "OUTPUT_NOT_FOUND",
+    "message": "The requested output ID does not exist or has expired.",
+    "details": {
+      "output_id_provided": "gen-this-is-fake"
+    }
+  }
 }
 ```
 
@@ -359,8 +419,9 @@ When a tool call fails, Delegate returns structured error information through th
 | `INVALID_MODEL` | Model ID not recognized | Use supported model |
 | `FILE_NOT_FOUND` | Context file doesn't exist | Verify file paths |
 | `PROVIDER_ERROR` | LLM API returned error | Check API keys and limits |
-| `OUTPUT_NOT_FOUND` | Output ID doesn't exist | Verify ID from invoke |
-| `EXTRACTION_FAILED` | Could not parse LLM response | Try `extract: "all"` |
+| `OUTPUT_NOT_FOUND` | Output ID doesn't exist | Verify ID from submit_task |
+| `FILE_WRITE_FAILED` | Could not write to specified path | Check file permissions |
+| `PATH_TRAVERSAL_ATTEMPT` | Illegal path detected | Use relative paths within project |
 | `TIMEOUT` | Operation exceeded timeout | Increase timeout or simplify |
 
 ## **Supported Models**
@@ -372,52 +433,201 @@ When a tool call fails, Delegate returns structured error information through th
 | `claude-sonnet-4-20250514` | Anthropic | 200K tokens | Balanced quality and performance |
 | `claude-opus-4-20250514` | Anthropic | 200K tokens | Highest quality for critical systems |
 
-## **Best Practices**
+## **Workflow Examples**
 
-### **1. Always Check Before Reading**
+### **Scenario A: Zero-Token Code Generation**
+**Goal:** Generate code and save it directly to a file without consuming any tokens.
+
 ```javascript
-// ❌ Bad - might consume thousands of tokens
-const content = await mcp.read({ output_id });
+// Step 1: Submit the task
+const task = await mcp.submit_task({
+  model: "gemini-2.5-flash",
+  prompt: "Create a React component for handling user authentication",
+  files: ["src/types.ts", "src/api.js"]
+});
 
-// ✅ Good - make informed decisions
-const info = await mcp.check({ output_id });
-if (info.estimated_tokens > 5000) {
-  // Extract only what you need
-  const code = await mcp.read({ 
-    output_id, 
-    options: { extract: "code", max_tokens: 2000 }
-  });
+// Step 2: Write directly to file (ZERO tokens consumed)
+const result = await mcp.write_output_to_file({
+  output_id: task.output_id,
+  write_to: "src/components/AuthHandler.jsx",
+  options: {
+    extract: "code"
+  }
+});
+
+console.log(result.message); // "Successfully wrote 8.3 KB to src/components/AuthHandler.jsx"
+```
+
+### **Scenario B: Intelligent Multi-Block Handling**
+**Goal:** Understand the output structure before deciding which parts to save.
+
+```javascript
+// Step 1: Submit the task
+const task = await mcp.submit_task({
+  model: "gemini-2.5-pro",
+  prompt: "Create a complete React component with tests and documentation",
+  files: ["src/existing-component.jsx"]
+});
+
+// Step 2: Check what was generated
+const metadata = await mcp.get_output_metadata({
+  output_id: task.output_id
+});
+
+// Step 3: Programmatically handle different blocks
+for (const block of metadata.content_analysis.blocks) {
+  if (block.language === "jsx") {
+    // Save the component
+    await mcp.write_output_to_file({
+      output_id: task.output_id,
+      write_to: `src/components/NewComponent.jsx`,
+      options: {
+        block_index: block.index
+      }
+    });
+  } else if (block.language === "javascript" && block.preview.includes("test")) {
+    // Save the tests
+    await mcp.write_output_to_file({
+      output_id: task.output_id,
+      write_to: `src/components/__tests__/NewComponent.test.js`,
+      options: {
+        block_index: block.index
+      }
+    });
+  } else if (block.language === "md") {
+    // Save the documentation
+    await mcp.write_output_to_file({
+      output_id: task.output_id,
+      write_to: `docs/NewComponent.md`,
+      options: {
+        block_index: block.index
+      }
+    });
+  }
 }
 ```
 
-### **2. Use Context Files**
+### **Scenario C: Token-Efficient Content Review**
+**Goal:** Review small parts of the output before deciding what to do with the full content.
+
+```javascript
+// Step 1: Submit the task
+const task = await mcp.submit_task({
+  model: "claude-sonnet-4-20250514",
+  prompt: "Refactor this legacy code to use modern patterns",
+  files: ["src/legacy-module.js"]
+});
+
+// Step 2: Check the size first
+const metadata = await mcp.get_output_metadata({
+  output_id: task.output_id
+});
+
+if (metadata.metadata.token_estimate > 5000) {
+  // Large output - get just the explanation first
+  const explanation = await mcp.get_output_content({
+    output_id: task.output_id,
+    options: {
+      extract: "explanation",
+      max_tokens: 500
+    }
+  });
+  
+  console.log("Summary:", explanation.content);
+  
+  // If satisfied, write the code directly to file
+  await mcp.write_output_to_file({
+    output_id: task.output_id,
+    write_to: "src/modern-module.js",
+    options: {
+      extract: "code"
+    }
+  });
+} else {
+  // Small output - safe to get everything
+  const fullContent = await mcp.get_output_content({
+    output_id: task.output_id
+  });
+  
+  console.log("Full output:", fullContent.content);
+}
+```
+
+## **Best Practices**
+
+### **1. Use Metadata for Smart Decisions**
+```javascript
+// ❌ Bad - might consume thousands of tokens
+const content = await mcp.get_output_content({ output_id });
+
+// ✅ Good - make informed decisions
+const info = await mcp.get_output_metadata({ output_id });
+if (info.metadata.token_estimate > 5000) {
+  // Write directly to file to save tokens
+  await mcp.write_output_to_file({
+    output_id,
+    write_to: "output.txt",
+    options: { extract: "code" }
+  });
+} else {
+  // Safe to get content
+  const content = await mcp.get_output_content({ output_id });
+}
+```
+
+### **2. Leverage Context Files**
 ```javascript
 // ❌ Bad - LLM lacks context
-await mcp.invoke({
+await mcp.submit_task({
   model: "gemini-2.5-flash",
   prompt: "Update the API to handle the new requirements"
 });
 
 // ✅ Good - clear context improves quality
-await mcp.invoke({
+await mcp.submit_task({
   model: "gemini-2.5-flash", 
   prompt: "Update the API to handle the new requirements",
-  files: ["new_requirements.md", "current_api.js", "tests.js"]
+  files: ["docs/new-requirements.md", "src/current-api.js", "tests/api.test.js"]
 });
 ```
 
-### **3. Strategic Extraction**
+### **3. Handle Multi-Block Outputs Gracefully**
 ```javascript
-// First pass - get the code
-const code = await mcp.read({
-  output_id,
-  options: { extract: "code" }
-});
+// Get metadata first to understand the structure
+const metadata = await mcp.get_output_metadata({ output_id });
 
-// Later, if needed - get explanation
-const explanation = await mcp.read({
+if (metadata.content_analysis.blocks_found > 1) {
+  // Handle each block appropriately
+  for (const block of metadata.content_analysis.blocks) {
+    const filename = `output_${block.index}.${block.language}`;
+    await mcp.write_output_to_file({
+      output_id,
+      write_to: filename,
+      options: { block_index: block.index }
+    });
+  }
+} else {
+  // Single block - write directly
+  await mcp.write_output_to_file({
+    output_id,
+    write_to: "output.txt"
+  });
+}
+```
+
+### **4. Use Relative Paths**
+```javascript
+// ✅ Good - relative paths from project root
+const files = [
+  "src/models/user.go",
+  "docs/api-spec.md",
+  "config/database.json"
+];
+
+// ✅ Good - relative output paths
+await mcp.write_output_to_file({
   output_id,
-  options: { extract: "explanation", max_tokens: 500 }
+  write_to: "src/handlers/new-endpoint.go"
 });
 ```
 
@@ -428,49 +638,25 @@ Delegate behavior can be customized via environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DELEGATE_LOG_LEVEL` | `info` | Logging verbosity: debug, info, warn, error |
-| `DELEGATE_TIMEOUT_SECONDS` | `60` | Maximum time for any invoke operation (can be overridden per request) |
+| `DELEGATE_TIMEOUT_SECONDS` | `180` | Default timeout for submit_task operations |
 | `DELEGATE_OUTPUT_DIR` | `./.delegate` | Directory for outputs and logs |
+| `DELEGATE_WORKING_DIR` | `./` | Working directory for relative path resolution |
 
 ## **Output Lifecycle**
 
 - Outputs are stored in `{DELEGATE_OUTPUT_DIR}/outputs/`
 - Files are automatically cleaned up after 24 hours
 - Output IDs are timestamp-based: `out_YYYYMMDD_HHMMSS`
-- Each output is a complete JSON file containing the full LLM response
+- Each output is a complete JSON file containing the full LLM response and metadata
 
-## **Error Handling**
+## **Security Considerations**
 
-Delegate uses structured errors to help Claude Code make intelligent recovery decisions:
-
-### Error Response Format
-```json
-{
-  "error": "provider_unavailable",
-  "provider": "gemini-2.5-flash",
-  "error_code": 429,
-  "message": "Gemini is rate limited. Consider using Claude models or waiting 60s.",
-  "retry_after": 60,
-  "alternative_models": ["claude-sonnet-4-20250514", "gemini-2.5-pro"]
-}
-```
-
-### Error Types
-| Error Type | HTTP Code | Description | Claude Code Action |
-|------------|-----------|-------------|-------------------|
-| `rate_limited` | 429 | Too many requests | Try alternative model or wait |
-| `provider_unavailable` | 503 | Service overloaded | Try alternative model or wait |
-| `timeout` | 504 | Request took too long | Retry with simpler prompt |
-| `provider_error` | 500 | Internal provider error | Retry or use alternative |
-| `network_error` | - | Connection failed | Retry or inform user |
-
-### Retry Behavior
-- Automatic retry: 3 attempts with exponential backoff (1s, 2s, 4s)
-- Retries happen within Delegate before returning error
-- After 3 failures, structured error is returned to Claude Code
-
-### Philosophy
-Rather than complex automatic fallbacks, Delegate provides clear error information, letting Claude Code decide the best action based on context (retry, switch models, handle directly, or inform user).
+- All file paths are resolved relative to the configured working directory
+- Path traversal attempts (e.g., `../../../etc/passwd`) are blocked
+- File writes are sandboxed to the project directory
+- Context files are validated for size limits (<1MB each)
+- API keys are never logged or transmitted except to their respective providers
 
 ---
 
-**Next Steps:** Check out the Model Reference Card for detailed model selection guidance!
+**Migration Note:** This API replaces the previous 3-tool architecture. The new 4-tool design provides clearer separation of concerns and more predictable token usage patterns.

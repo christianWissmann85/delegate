@@ -1,263 +1,339 @@
-# **Delegate: MCP Installation Guide for Claude Code v1.0**
+# Delegate MCP Server - Deployment Guide
 
-**Status:** Final | **Version:** 1.0 | **Date:** 2025-06-20
+**Reviewed by Christian Wissmann for Delegate V2.0**
 
-## **1. Overview**
+## 1. Prerequisites
 
-Delegate is an MCP (Model Context Protocol) server that integrates seamlessly with Claude Code CLI. No binaries, no system installation - just add it as an MCP server and start delegating code generation to save your context tokens!
+Before installing Delegate, ensure you have the following:
 
-**What you need:**
-- Claude Code CLI installed and working
-- API keys for Gemini and/or Claude models
-- 2 minutes to set it up
+### Go Installation
+- **Go 1.21 or higher** is required for building from source
+- Check your Go version: `go version`
+- Install Go from [golang.org](https://golang.org/download/) if needed
 
-## **2. Installation**
+### Claude Code CLI
+- Install the Claude Code CLI following the [official installation guide](https://docs.anthropic.com/claude/docs/claude-code)
+- Verify installation: `claude --version`
 
-### **Step 1: Add Delegate MCP Server to Claude Code**
+### API Keys
+You need at least one API key from the supported providers:
 
-Run this command in your terminal:
+- **Google AI Studio API Key** (for Gemini models)
+  - Get your key at [ai.google.dev](https://ai.google.dev/)
+  - Set environment variable: `export GOOGLE_API_KEY="your-key-here"`
 
-```bash
-claude mcp add delegate -s user -- npx -y @christianwissmann85/delegate
-```
+- **Anthropic API Key** (for Claude models)
+  - Get your key at [console.anthropic.com](https://console.anthropic.com/)
+  - Set environment variable: `export ANTHROPIC_API_KEY="your-key-here"`
 
-This command:
-- Adds Delegate as an MCP server named "delegate"
-- Uses user scope (`-s user`) so it's available in all your projects
-- Runs via npx to always use the latest version
+## 2. Installation Methods
 
-### **Step 2: Configure API Keys**
+### Option A: Quick Install Script (Recommended)
 
-You need to set environment variables for the LLM providers you want to use.
-
-**Option A: Add to your shell profile** (recommended)
-
-Add these to your `~/.bashrc`, `~/.zshrc`, or equivalent:
+The fastest way to get started:
 
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-export GOOGLE_API_KEY="AIza..."
+# Clone the repository
+git clone https://github.com/christianwissmann85/delegate.git
+cd delegate
+
+# Run the installer (builds & installs system-wide)
+./update.sh
 ```
 
-Then reload your shell:
+**What the installer does:**
+- ✅ Builds the delegate binary
+- ✅ Installs it to `/usr/local/bin` (system-wide access)
+- ✅ Shows you exactly how to use MCP with any project
+- ✅ Contains extensive comments explaining MCP setup
+- ✅ No more confusion about per-project setup!
+
+### Option B: Manual Installation
+
+If you prefer to build and install manually:
+
 ```bash
-source ~/.bashrc  # or source ~/.zshrc
+# Clone the repository
+git clone https://github.com/christianwissmann85/delegate.git
+cd delegate
+
+# Build the binary
+go build -o delegate main.go
+
+# Install system-wide (optional)
+sudo mv delegate /usr/local/bin/
+
+# Or install to a specific location
+cp delegate /path/to/your/binaries/
 ```
 
-**Option B: Project-specific configuration**
+### Option C: Binary Download
 
-Create a `.env` file in your project directory:
-```
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=AIza...
-```
+Download pre-built binaries from the [releases page](https://github.com/christianwissmann85/delegate/releases):
 
-### **Step 3: Get Your API Keys**
-
-**For Gemini models:**
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Click "Create API Key"
-3. Copy your key
-
-**For Claude models:**
-1. Go to [Anthropic Console](https://console.anthropic.com/)
-2. Navigate to API Keys
-3. Create a new key
-4. Copy your key
-
-### **Step 4: Verify Installation**
-
-Start Claude Code in any project:
 ```bash
-claude
+# Download for your platform
+curl -L https://github.com/christianwissmann85/delegate/releases/latest/download/delegate-linux-amd64 -o delegate
+
+# Make executable
+chmod +x delegate
+
+# Install system-wide
+sudo mv delegate /usr/local/bin/
 ```
 
-Then check if Delegate is available:
-```
-/mcp
+## 3. Configuration
+
+### Environment Variables
+
+Create a `.env` file in your project directory or set environment variables:
+
+```bash
+# Required: At least one API key
+export GOOGLE_API_KEY="your-google-api-key"
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+
+# Optional: Server configuration
+export DELEGATE_PORT="8080"                    # Default port
+export DELEGATE_TIMEOUT="120"                  # Default timeout in seconds
+export DELEGATE_MAX_TOKENS="100000"           # Default max tokens
+export DELEGATE_WORKING_DIR="/path/to/project" # Default working directory
 ```
 
-You should see:
+### Configuration File
+
+Alternatively, create a `config.json` file:
+
+```json
+{
+  "port": 8080,
+  "timeout": 120,
+  "max_tokens": 100000,
+  "working_directory": "/path/to/your/project",
+  "providers": {
+    "google": {
+      "api_key": "your-google-api-key"
+    },
+    "anthropic": {
+      "api_key": "your-anthropic-api-key"
+    }
+  }
+}
 ```
-⎿ MCP Server Status
-⎿ • delegate: connected
+
+## 4. Running the Server
+
+### Standalone Mode
+
+For testing or development:
+
+```bash
+# Run with environment variables
+export GOOGLE_API_KEY="your-key"
+delegate
+
+# Or run with explicit configuration
+delegate --config config.json --port 8080
 ```
 
-## **3. Alternative Installation Options**
+### With Claude Code (Recommended)
 
-### **Project-Scoped Installation**
-
-To install Delegate only for a specific project:
+Add Delegate to your project and run with Claude Code:
 
 ```bash
 # Navigate to your project
 cd /path/to/your/project
 
-# Add with project scope
-claude mcp add delegate -s project -- npx -y @christianwissmann85/delegate
-```
+# Add Delegate to this project (one-time setup)
+claude mcp add delegate -s project -- delegate
 
-### **Custom Environment Variables**
-
-You can pass environment variables directly in the MCP configuration:
-
-```bash
-claude mcp add delegate -s user -- env \
-  ANTHROPIC_API_KEY="your-key" \
-  GOOGLE_API_KEY="your-key" \
-  DELEGATE_LOG_LEVEL="debug" \
-  npx -y @christianwissmann85/delegate
-```
-
-## **4. Configuration Options**
-
-### **Environment Variables**
-
-Set these in your shell profile or project `.env` file:
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `ANTHROPIC_API_KEY` | Yes* | - | For Claude models |
-| `GOOGLE_API_KEY` | Yes* | - | For Gemini models |
-| `DELEGATE_LOG_LEVEL` | No | `info` | Options: `debug`, `info`, `warn`, `error` |
-| `DELEGATE_TIMEOUT_SECONDS` | No | `60` | Max time for generation |
-| `DELEGATE_OUTPUT_DIR` | No | `.delegate` | Where outputs are stored |
-
-*At least one API key is required
-
-## **5. Using Delegate in Claude Code**
-
-Once installed, Claude Code will automatically use Delegate when appropriate. You can also explicitly request it:
-
-```
-"Use Delegate to generate a complex React component with Gemini"
-```
-
-The three tools available:
-- `delegate_invoke` - Generate code with another LLM
-- `delegate_check` - Check output size before reading
-- `delegate_read` - Read generated content
-
-## **6. Supported Models**
-
-| Model ID | Provider | Best For |
-|----------|----------|----------|
-| `gemini-2.5-flash` | Google | Fast, everyday code generation |
-| `gemini-2.5-pro` | Google | Complex reasoning and architecture |
-| `claude-sonnet-4-20250514` | Anthropic | Balanced quality and speed |
-| `claude-opus-4-20250514` | Anthropic | Highest quality, critical code |
-
-## **7. Managing Your MCP Server**
-
-### **View All MCP Servers**
-```bash
-claude mcp list
-```
-
-### **Remove Delegate**
-```bash
-claude mcp remove delegate
-```
-
-### **Disable Temporarily**
-```bash
-claude mcp disable delegate
-```
-
-### **Re-enable**
-```bash
-claude mcp enable delegate
-```
-
-## **8. Troubleshooting**
-
-### **"MCP server not connected"**
-1. Check your API keys are set correctly:
-   ```bash
-   echo $ANTHROPIC_API_KEY
-   echo $GOOGLE_API_KEY
-   ```
-2. Try removing and re-adding:
-   ```bash
-   claude mcp remove delegate
-   claude mcp add delegate -s user -- npx -y @christianwissmann85/delegate
-   ```
-
-### **"API key errors"**
-- Ensure no quotes around your API keys in environment variables
-- Verify keys are valid in their respective consoles
-- Check you're using the correct key format
-
-### **"Timeout errors"**
-- Large generations might exceed 30 seconds
-- Set a higher timeout:
-  ```bash
-  export DELEGATE_TIMEOUT_SECONDS=60
-  ```
-
-### **"Permission denied" on outputs**
-- Delegate creates a `.delegate` folder in your current directory
-- Ensure you have write permissions
-- Or set a custom output directory:
-  ```bash
-  export DELEGATE_OUTPUT_DIR=/tmp/delegate
-  ```
-
-## **9. Debug Mode**
-
-For troubleshooting, enable debug logging:
-
-```bash
-export DELEGATE_LOG_LEVEL=debug
-claude mcp add delegate -s user -- npx -y @christianwissmann85/delegate
-```
-
-Then restart Claude Code and check the logs:
-```bash
-# Check MCP server logs
-ls ~/.claude/logs/
-tail -f ~/.claude/logs/mcp-server-delegate.log
-```
-
-## **10. Updating Delegate**
-
-Delegate updates automatically via npx. To force an update:
-
-1. Clear npm cache:
-   ```bash
-   npm cache clean --force
-   ```
-
-2. Remove and re-add the server:
-   ```bash
-   claude mcp remove delegate
-   claude mcp add delegate -s user -- npx -y @christianwissmann85/delegate
-   ```
-
-## **11. Quick Start Example**
-
-```bash
-# 1. Set your API keys
-export GOOGLE_API_KEY="your-google-key"
-export ANTHROPIC_API_KEY="your-anthropic-key"
-
-# 2. Add Delegate
-claude mcp add delegate -s user -- npx -y @christianwissmann85/delegate
-
-# 3. Start Claude Code
+# Start Claude Code
 claude
-
-# 4. Use it!
-# Type: "Use Delegate with Gemini to create a REST API server"
 ```
 
-## **12. Best Practices**
+### System Service (Production)
 
-1. **Global vs Project Scope**: Use `-s user` for global access, `-s project` for project-specific needs
-2. **API Key Security**: Never commit API keys to version control
-3. **Output Cleanup**: Delegate automatically cleans up files older than 24 hours
-4. **Model Selection**: Let Claude Code choose the model, or specify explicitly in your request
+For production deployments, create a systemd service:
+
+```ini
+# /etc/systemd/system/delegate.service
+[Unit]
+Description=Delegate MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=delegate
+WorkingDirectory=/opt/delegate
+ExecStart=/usr/local/bin/delegate
+Environment=GOOGLE_API_KEY=your-key
+Environment=ANTHROPIC_API_KEY=your-key
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Enable and start the service
+sudo systemctl enable delegate
+sudo systemctl start delegate
+sudo systemctl status delegate
+```
+
+## 5. Using in Claude Code - The New 4-Tool API
+
+Once Delegate is running with Claude Code, you have access to four powerful tools:
+
+### Tool Overview
+
+| Tool | Purpose | Token Cost |
+|------|---------|------------|
+| `delegate_submit_task` | Submit generation task, get output_id | Low (~50-100 tokens) |
+| `delegate_get_output_metadata` | Check output size/structure | Low (~20 tokens) |
+| `delegate_get_output_content` | Read content into context | High (proportional to content) |
+| `delegate_write_output_to_file` | Write content directly to file | **ZERO tokens** |
+
+## 6. Troubleshooting
+
+### Common Issues
+
+#### "delegate: command not found"
+
+```bash
+# Check if delegate is in PATH
+which delegate
+
+# If not found, install system-wide
+sudo cp delegate /usr/local/bin/
+
+# Or add to PATH
+export PATH=$PATH:/path/to/delegate/directory
+```
+
+#### "API key not found" errors
+
+```bash
+# Verify environment variables are set
+echo $GOOGLE_API_KEY
+echo $ANTHROPIC_API_KEY
+
+# Set them if missing
+export GOOGLE_API_KEY="your-key-here"
+export ANTHROPIC_API_KEY="your-key-here"
+
+# Or create .env file in project directory
+cat > .env << EOF
+GOOGLE_API_KEY=your-key-here
+ANTHROPIC_API_KEY=your-key-here
+EOF
+```
+
+#### "Connection refused" or server not starting
+
+```bash
+# Check if port is already in use
+lsof -i :8080
+
+# Use a different port
+delegate --port 8081
+
+# Or set environment variable
+export DELEGATE_PORT=8081
+```
+
+#### "File write failed" errors
+```bash
+# Check permissions in target directory
+ls -la /path/to/target/directory
+
+# Create directory if it doesn't exist
+mkdir -p src/generated
+
+# Check working directory
+pwd
+# Delegate uses relative paths from its working directory
+```
+
+#### Model timeout errors
+
+```bash
+# Increase timeout for large generations
+export DELEGATE_TIMEOUT=300  # 5 minutes
+
+# Or specify in the request
+delegate_submit_task(
+    model="gemini-2.0-flash-experimental",
+    prompt="your prompt",
+    timeout=300
+)
+```
+
+### Debug Mode
+
+Enable debug logging for troubleshooting:
+
+```bash
+# Run with debug logging
+export DELEGATE_DEBUG=true
+delegate
+
+# Or with specific log level
+export DELEGATE_LOG_LEVEL=debug
+delegate
+```
+
+### Health Check
+
+Verify Delegate is working correctly:
+
+```bash
+# Check server status
+curl http://localhost:8080/health
+
+# Test basic functionality
+curl -X POST http://localhost:8080/delegate_submit_task \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gemini-2.5-flash", "prompt": "Hello, world!"}'
+```
+
+### Performance Optimization
+
+For better performance:
+
+```bash
+# Increase memory limit for Go
+export GOGC=100
+export GOMEMLIMIT=4GiB
+
+# Use faster models for development
+# gemini-2.5-flash instead of gemini-2.5-pro
+
+# Reduce max_tokens for faster responses
+delegate_submit_task(
+    max_tokens=50000,  # Instead of default 100000
+    # ... other parameters
+)
+```
+
+### Getting Help
+
+If you're still having issues:
+
+1. **Check the logs**: Look for error messages in the console output
+2. **Verify configuration**: Double-check API keys and environment variables
+3. **Test connectivity**: Ensure you can reach the AI provider APIs
+4. **Check file permissions**: Verify write access to target directories
+5. **Review working directory**: Ensure relative paths resolve correctly
+
+For additional support, check the [GitHub Issues](https://github.com/christianwissmann85/delegate/issues) or create a new issue with:
+- Your operating system
+- Go version (`go version`)
+- Claude Code version (`claude --version`)
+- Error messages and logs
+- Steps to reproduce the issue
 
 ---
 
-**Next Steps:** Check out `claude-code-guide-updated.md` for usage patterns and examples!
+**Ready to transform Claude Code into a Team Lead?** Start with the quick install script and begin delegating heavy lifting to other LLMs while keeping Claude's context clean for the important architectural decisions.

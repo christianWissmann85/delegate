@@ -7,11 +7,11 @@ Welcome to the Delegate documentation! Delegate is an MCP server that allows Cla
 ### 🏗️ Architecture
 - [**Architecture Specification**](architecture/architecture-spec.md) - Complete technical specification
 - [**Module Architecture**](architecture/module-architecture.md) - Module boundaries and interfaces
-- [**Day 0 Decisions**](architecture/day-0-decisions.md) - Key implementation decisions
+- [**Day 0 Decisions**](.archive/day-0-decisions.md) - Key implementation decisions
 
 ### 🔧 Development
-- [**Implementation Roadmap**](development/implementation-roadmap.md) - 3-week development plan
-- [**Project Charter**](development/PROJECT_CHARTER.md) - Mission and core principles
+- [**Implementation Roadmap**](docs/development/implementation-roadmap-VICTORY.md) - Development plan
+- [**Project Charter**](.archive/PROJECT_CHARTER.md) - Mission and core principles
 - [**NO SCOPE CREEP**](development/NO_SCOPE_CREEP.md) - The sacred document
 - [**Testing Strategy**](development/delegate-testing.md) - Test plans and approaches
 - [**Implementation Questions**](development/implementation-questions.md) - Technical decisions

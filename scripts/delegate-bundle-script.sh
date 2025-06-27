@@ -143,8 +143,20 @@ print_status "Creating specialized bundle.md for delegate repository..."
     echo ""
     
     # Main project docs
-    for file in README.md CLAUDE.md LICENSE; do
+    for file in README.md CLAUDE.md REFACTORING_PLAN.md LICENSE; do
         if [[ -f "$file" ]] && should_include "$file"; then
+            echo "#### $file"
+            echo ""
+            echo '```markdown'
+            cat "$file"
+            echo '```'
+            echo ""
+        fi
+    done
+    
+    # Additional markdown files in root directory
+    for file in *.md; do
+        if [[ -f "$file" ]] && should_include "$file" && ! [[ "$file" =~ ^(README|CLAUDE|REFACTORING_PLAN|LICENSE)\.md$ ]]; then
             echo "#### $file"
             echo ""
             echo '```markdown'

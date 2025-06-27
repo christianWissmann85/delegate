@@ -1,7 +1,9 @@
 # NO SCOPE CREEP - The Sacred Document
 
+**Reviewed by Christian Wissmann for Delegate V2.0**
+
 ## The Prime Directive
-**If it's not in the original 3 APIs (invoke, check, read), it doesn't exist.**
+**If it's not one of the 4 tools (`submit_task`, `get_output_metadata`, `get_output_content`, `write_output_to_file`), it doesn't exist.**
 
 ## Things We Will NOT Build (No Matter How "Easy")
 
@@ -57,7 +59,6 @@
 ### ❌ Batch Operations (v1.0)
 - "Process multiple files..." - **NO**
 - "Parallel execution..." - **NO**
-- Maybe v2.0, after 1 month of stable operation
 
 ### ❌ Middleware/Plugins
 - "Extensibility is important..." - **NO**
@@ -102,7 +103,7 @@
 
 ### The Decision Tree
 ```
-Is it invoke, check, or read?
+Is it submit_task, get_output_metadata, get_output_content, or write_output_to_file?
 ├─ Yes: Consider it
 │   └─ Does it add complexity?
 │       ├─ Yes: NO
@@ -111,8 +112,8 @@ Is it invoke, check, or read?
 ```
 
 ### Standard Responses
-- "That's a great idea for v2" (Translation: Never)
-- "Let's see how v1 performs first" (Translation: No)
+- "That's a great idea for v3" (Translation: Never)
+- "Let's see how v2 performs first" (Translation: No)
 - "That would complicate the core design" (Translation: Obviously no)
 - "Check NO_SCOPE_CREEP.md" (Translation: Read this document)
 
@@ -139,8 +140,8 @@ Is it invoke, check, or read?
 ## The Mantra
 
 When in doubt, chant:
-- **Three APIs**
-- **One purpose**
+- **Four tools**
+- **One purpose each**
 - **Zero complexity**
 - **No scope creep**
 
@@ -167,6 +168,6 @@ This document is **sacred**.
 - Look at it when tempted
 - Say NO to scope creep
 
-**Every feature that isn't invoke/check/read is a step toward another failed refactor.**
+**Every feature that isn't `submit_task`/`get_output_metadata`/`get_output_content`/`write_output_to_file` is a step toward another failed refactor.**
 
 Stay strong. Ship simple. Win.

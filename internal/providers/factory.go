@@ -6,6 +6,7 @@ import (
 
 	"github.com/christianwissmann85/delegate/internal/config"
 	"github.com/christianwissmann85/delegate/internal/handlers"
+	"github.com/christianwissmann85/delegate/internal/models"
 	"github.com/christianwissmann85/delegate/internal/providers/anthropic"
 	"github.com/christianwissmann85/delegate/internal/providers/google"
 	"github.com/christianwissmann85/delegate/internal/providers/mock"
@@ -41,7 +42,11 @@ func (f *Factory) GetProvider(model string) (handlers.Provider, error) {
 			provider = anthropic.NewProvider(f.config.AnthropicKey, model, f.config.TimeoutSeconds)
 			providerName = "anthropic"
 		default:
-			return nil, fmt.Errorf("unsupported model: %s", model)
+			return nil, models.NewDelegateError(
+				models.ErrorTypeInvalidRequest,
+				fmt.Sprintf("Unsupported model: %s. Supported models are: %s", 
+					model, strings.Join(f.SupportedModels(), ", ")),
+			)
 		}
 	}
 

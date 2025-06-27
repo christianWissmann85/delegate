@@ -18,8 +18,10 @@ const (
 	MaxFileCount = 50
 	// Maximum timeout: 10 minutes
 	MaxTimeout = 600
-	// Minimum timeout: 10 seconds
+	// Minimum timeout: 10 seconds (but 120+ seconds recommended)
 	MinTimeout = 10
+	// Recommended timeout for stable LLM responses
+	RecommendedMinTimeout = 120
 )
 
 // ValidateOutputID validates an output ID is safe
@@ -27,8 +29,7 @@ func ValidateOutputID(id string) error {
 	if id == "" {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			"output_id is required",
+			"Output ID is required", // Moved from unnamed argument
 		)
 	}
 
@@ -36,8 +37,7 @@ func ValidateOutputID(id string) error {
 	if strings.Contains(id, "/") || strings.Contains(id, "\\") || strings.Contains(id, "..") {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			"invalid output_id: contains path separators",
+			"Invalid output ID: contains path separators", // Moved from unnamed argument
 		)
 	}
 
@@ -45,8 +45,7 @@ func ValidateOutputID(id string) error {
 	if len(id) > 100 {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			"invalid output_id: too long (max 100 characters)",
+			"Invalid output ID: too long (max 100 characters)", // Moved from unnamed argument
 		)
 	}
 
@@ -54,8 +53,7 @@ func ValidateOutputID(id string) error {
 	if !strings.HasPrefix(id, "out_") && !strings.HasPrefix(id, "test_output_") {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			"invalid output_id: must start with 'out_' or 'test_output_'",
+			"Invalid output ID: must start with 'out_' or 'test_output_'", // Moved from unnamed argument
 		)
 	}
 
@@ -67,8 +65,7 @@ func ValidateFilePaths(files []string) error {
 	if len(files) > MaxFileCount {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("too many files: %d (max %d)", len(files), MaxFileCount),
+			fmt.Sprintf("Too many files: %d (max %d)", len(files), MaxFileCount), // Moved from unnamed argument
 		)
 	}
 
@@ -86,8 +83,7 @@ func validateSingleFilePath(path string) error {
 	if len(path) > MaxFilePathLength {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("file path too long: %s (max %d characters)", path, MaxFilePathLength),
+			fmt.Sprintf("File path too long: %s (max %d characters)", path, MaxFilePathLength), // Moved from unnamed argument
 		)
 	}
 
@@ -95,7 +91,7 @@ func validateSingleFilePath(path string) error {
 	if filepath.IsAbs(path) {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"Path must be relative, not absolute",
+			"Path must be relative, not absolute", // Already correct
 			"path", path,
 			"hint", "Use relative paths like 'src/main.go' instead of '/home/user/project/src/main.go'",
 		)
@@ -103,7 +99,7 @@ func validateSingleFilePath(path string) error {
 
 	// Clean the path to resolve any .. or . elements
 	cleanPath := filepath.Clean(path)
-	
+
 	// Convert relative path to absolute for file system checks
 	absPath := cleanPath
 	if !filepath.IsAbs(cleanPath) {
@@ -111,7 +107,7 @@ func validateSingleFilePath(path string) error {
 		if err != nil {
 			return models.NewDelegateError(
 				models.ErrorTypeInvalidRequest,
-				"Failed to get working directory",
+				"Failed to get working directory", // Already correct
 				"error", err.Error(),
 			)
 		}
@@ -124,14 +120,12 @@ func validateSingleFilePath(path string) error {
 		if os.IsNotExist(err) {
 			return models.NewDelegateError(
 				models.ErrorTypeFileNotFound,
-				"",
-				fmt.Sprintf("file not found: %s", path),
+				fmt.Sprintf("File not found: %s", path), // Moved from unnamed argument
 			)
 		}
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("cannot access file: %s", path),
+			fmt.Sprintf("Cannot access file: %s", path), // Moved from unnamed argument
 		)
 	}
 
@@ -139,8 +133,7 @@ func validateSingleFilePath(path string) error {
 	if !info.Mode().IsRegular() {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("not a regular file: %s", path),
+			fmt.Sprintf("Not a regular file: %s", path), // Moved from unnamed argument
 		)
 	}
 
@@ -148,8 +141,7 @@ func validateSingleFilePath(path string) error {
 	if info.Size() > 1024*1024 {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("file too large: %s (max 1MB)", cleanPath),
+			fmt.Sprintf("File too large: %s (max 1MB)", cleanPath), // Moved from unnamed argument
 		)
 	}
 
@@ -161,16 +153,14 @@ func ValidatePrompt(prompt string) error {
 	if prompt == "" {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			"prompt is required",
+			"Prompt is required", // Moved from unnamed argument
 		)
 	}
 
 	if len(prompt) > MaxPromptSize {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("prompt too large: %d bytes (max %d)", len(prompt), MaxPromptSize),
+			fmt.Sprintf("Prompt too large: %d bytes (max %d)", len(prompt), MaxPromptSize), // Moved from unnamed argument
 		)
 	}
 
@@ -182,8 +172,7 @@ func ValidateModel(model string) error {
 	if model == "" {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			"model is required",
+			"Model is required", // Moved from unnamed argument
 		)
 	}
 
@@ -196,24 +185,22 @@ func ValidateTimeout(timeout int) error {
 	if timeout < 0 {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			"timeout cannot be negative",
+			"Timeout cannot be negative", // Moved from unnamed argument
 		)
 	}
 
 	if timeout > 0 && timeout < MinTimeout {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("timeout too short: %d seconds (min %d)", timeout, MinTimeout),
+			fmt.Sprintf("Timeout too short: %d seconds (minimum: %d seconds, recommended: %d+ seconds for stable LLM responses)", 
+				timeout, MinTimeout, RecommendedMinTimeout),
 		)
 	}
 
 	if timeout > MaxTimeout {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("timeout too long: %d seconds (max %d)", timeout, MaxTimeout),
+			fmt.Sprintf("Timeout too long: %d seconds (max %d)", timeout, MaxTimeout), // Moved from unnamed argument
 		)
 	}
 
@@ -225,8 +212,7 @@ func ValidateMaxTokens(maxTokens int) error {
 	if maxTokens < 0 {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			"max_tokens cannot be negative",
+			"Max tokens cannot be negative", // Moved from unnamed argument
 		)
 	}
 
@@ -246,8 +232,7 @@ func ValidateExtractOption(extract string) error {
 	default:
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("invalid extract option: %s (must be 'all', 'code', or 'explanation')", extract),
+			fmt.Sprintf("Invalid extract option: %s (must be 'all', 'code', or 'explanation')", extract), // Moved from unnamed argument
 		)
 	}
 }

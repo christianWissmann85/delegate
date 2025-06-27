@@ -8,17 +8,18 @@ You are developing and maintaining delegate, an MCP server that YOU (and other C
 
 ## What is Delegate?
 
-Delegate is an MCP (Model Context Protocol) server that provides three simple tools:
-1. **delegate_invoke** - Send tasks to other LLMs (Gemini/Claude models)
-2. **delegate_check** - Check output size/tokens before retrieving
-3. **delegate_read** - Retrieve results OR write directly to disk (saving tokens!)
+Delegate is an MCP (Model Context Protocol) server that provides four simple tools:
+1. **delegate_submit_task** - Send tasks to other LLMs (Gemini/Claude models)
+2. **delegate_get_output_metadata** - Check output size/tokens before retrieving
+3. **delegate_get_output_content** - Retrieve results into your context
+4. **delegate_write_output_to_file** - Write results directly to disk (saving tokens!)
 
-**The Magic**: The `write_to` option in `delegate_read` lets you save massive outputs directly to disk WITHOUT consuming any tokens - achieving 95%+ token savings!
+**The Magic**: The `delegate_write_output_to_file` tool lets you save massive outputs directly to disk WITHOUT consuming any tokens - achieving 95%+ token savings!
 
 ## Core Philosophy
 
 Before making ANY changes, read `docs/development/NO_SCOPE_CREEP.md`. This project is intentionally minimal:
-- ✅ Only 3 tools: invoke, check, read
+- ✅ Only 4 tools: submit, metadata, content, write
 - ✅ Stateless operations only
 - ✅ Local filesystem storage
 - ❌ NO session management
@@ -49,24 +50,43 @@ Yes, you can use delegate to help develop delegate! 🤯
 
 ```bash
 # Example: Generate a new test file
-delegate_invoke(model: "gemini-2.5-flash", prompt: "Create comprehensive unit tests for the multi-block handling feature")
-delegate_check(output_id)
-delegate_read(output_id, options: {write_to: "/home/chris/repos/delegate/internal/handlers/multiblock_test.go", extract: "code"})
+delegate_submit_task(model: "gemini-2.5-flash", prompt: "Create comprehensive unit tests for the multi-block handling feature")
+# Response: {"output_id": "out_20241027_103000", "working_directory": "/home/chris/repos/delegate"}
+
+delegate_get_output_metadata(output_id: "out_20241027_103000")
+# Response shows structured metadata about the output
+
+delegate_write_output_to_file(output_id: "out_20241027_103000", write_to: "internal/handlers/multiblock_test.go", options: {extract: "code"})
+# Response: {"success": true, "path": "internal/handlers/multiblock_test.go", "bytes_written": 4388, ...}
 ```
 
 ## Key Features You Should Know
 
-### 1. Multi-Block Handling (NEW!)
+### 1. Multi-Block Handling with Structured Metadata
 
-When LLMs return multiple code blocks, delegate now shows a helpful listing:
+When LLMs return multiple code blocks, `delegate_get_output_metadata` returns structured JSON:
 
-```
-Warning: Multiple code blocks found (4 blocks). Use block_index option to select specific block.
-
-Block 0: go - "package main" (4.3 KB, 150 lines)
-Block 1: go - "package main_test" (1.2 KB, 45 lines)
-Block 2: yaml - "version: '3.8'" (456 bytes, 23 lines)
-Block 3: markdown - "# Usage Instructions" (892 bytes, 34 lines)
+```json
+{
+  "metadata": {
+    "output_id": "out_20241027_103000",
+    "status": "COMPLETED",
+    "size_kb": 15.7,
+    "line_count": 312,
+    "token_estimate": 3925,
+    "is_truncated": false,
+    "truncation_reason": null
+  },
+  "content_analysis": {
+    "blocks_found": 4,
+    "blocks": [
+      {"index": 0, "language": "go", "size_kb": 4.3, "lines": 150, "preview": "package main"},
+      {"index": 1, "language": "go", "size_kb": 1.2, "lines": 45, "preview": "package main_test"},
+      {"index": 2, "language": "yaml", "size_kb": 0.456, "lines": 23, "preview": "version: '3.8'"},
+      {"index": 3, "language": "markdown", "size_kb": 0.892, "lines": 34, "preview": "# Usage Instructions"}
+    ]
+  }
+}
 ```
 
 Then use `block_index` to select the one you want!
@@ -75,8 +95,12 @@ Then use `block_index` to select the one you want!
 
 ```bash
 # This writes directly to disk - you never see the content!
-delegate_read(output_id, options: {write_to: "/absolute/path/to/file.go", extract: "code"})
-# Output: "Content written to file.go (15.2 KB, ~3800 tokens saved)"
+delegate_write_output_to_file(
+  output_id: "out_20241027_103000", 
+  write_to: "src/component.jsx",
+  options: {extract: "code", block_index: 0}
+)
+# Response: {"success": true, "path": "src/component.jsx", "bytes_written": 15234, "message": "Successfully wrote 14.9 KB to src/component.jsx"}
 ```
 
 ### 3. Smart Code Extraction
@@ -84,6 +108,22 @@ delegate_read(output_id, options: {write_to: "/absolute/path/to/file.go", extrac
 - `extract: "code"` - Strips markdown fences for clean source files
 - `extract: "all"` - Keeps original formatting (good for docs)
 - `extract: "explanation"` - Gets only the explanatory text
+- `block_index: N` - Select specific block from multi-block outputs
+- `language: "jsx"` - Filter blocks by language
+
+### 4. Relative Path Simplicity
+
+All paths are now relative to the working directory:
+```bash
+# Before (old API): "/home/chris/repos/delegate/src/handlers/test.go"
+# Now: "src/handlers/test.go"
+
+delegate_submit_task(
+  model: "gemini-2.5-flash",
+  prompt: "Refactor this handler",
+  files: ["src/handlers/old.go", "docs/patterns.md"]  # Simple relative paths!
+)
+```
 
 ## Common Development Tasks
 
@@ -113,10 +153,11 @@ delegate/
 ├── main.go               # Entry point
 ├── internal/
 │   ├── mcp/             # MCP protocol layer
-│   ├── handlers/        # invoke, check, read implementations
+│   ├── handlers/        # submit, metadata, content, write implementations
 │   ├── providers/       # LLM integrations (Anthropic, Google)
 │   ├── extractor/       # Code/text extraction logic
-│   └── storage/         # File system operations
+│   ├── storage/         # File system operations
+│   └── models/          # Shared data structures and responses
 └── docs/
     ├── guides/          # User guides (for Claude Code instances!)
     ├── reference/       # API documentation
@@ -135,10 +176,10 @@ go test ./internal/providers/...
 # Full E2E tests
 go test -v -tags=e2e ./e2e/...
 
-# Quick manual test
-delegate_invoke(model: "gemini-2.5-flash", prompt: "Say hello")
-delegate_check(output_id)
-delegate_read(output_id)
+# Quick manual test with new API
+delegate_submit_task(model: "gemini-2.5-flash", prompt: "Say hello")
+delegate_get_output_metadata(output_id: "out_...")
+delegate_get_output_content(output_id: "out_...")
 ```
 
 ## Important Implementation Details
@@ -146,7 +187,7 @@ delegate_read(output_id)
 1. **Storage**: Outputs stored in `.delegate/outputs/` with 24-hour auto-cleanup
 2. **Models**: Only Gemini (Flash/Pro) and Claude (Sonnet/Opus 4)
 3. **Security**: Path traversal protection, input validation
-4. **Performance**: Check <100ms, Read <500ms, Streaming for invoke
+4. **Performance**: Metadata <100ms, Content retrieval <500ms, Streaming for submit
 
 ## When You're Stuck
 
@@ -157,39 +198,49 @@ delegate_read(output_id)
 
 ## AI-to-AI Collaborative Problem Solving
 
-One of the most powerful patterns with delegate is orchestrating multiple AI models to solve complex problems together. Here's how we just solved the truncation detection problem:
+One of the most powerful patterns with delegate is orchestrating multiple AI models to solve complex problems together. Here's how to leverage this effectively:
 
 ### The Multi-AI Discussion Pattern
 
 1. **Define the Problem Clearly**
    ```bash
    # Start with a clear problem statement and examples
-   delegate_invoke(
+   delegate_submit_task(
      model: "gemini-2.5-flash",
      prompt: "Here's the truncation problem we need to solve...",
-     files: ["/path/to/relevant/code.go", "/path/to/examples.md"]
+     files: ["internal/handlers/read.go", "test/examples/truncated.md"]
    )
    ```
 
 2. **Save Each AI's Response**
    ```bash
-   # Save responses to files for full context preservation
-   delegate_read(output_id, options: {
-     write_to: "/path/to/gemini_solution.md"
-   })
+   # Get the output ID
+   # Response: {"output_id": "gen-abc-123"}
+   
+   # Save response to file without consuming tokens
+   delegate_write_output_to_file(
+     output_id: "gen-abc-123",
+     write_to: "tmp/gemini_solution.md"
+   )
    ```
 
 3. **Facilitate Cross-Pollination**
    ```bash
    # Share all responses with the next AI
-   delegate_invoke(
+   delegate_submit_task(
      model: "claude-opus-4-20250514",
      prompt: "Here's Gemini's solution. What are your thoughts? Any improvements?",
      files: [
-       "/path/to/gemini_solution.md",
-       "/path/to/problem_context.md",
-       "/path/to/codebase_files.go"
+       "tmp/gemini_solution.md",
+       "docs/problem_context.md",
+       "internal/handlers/read.go"
      ]
+   )
+   
+   # Save Opus's response
+   delegate_write_output_to_file(
+     output_id: "gen-def-456",
+     write_to: "tmp/opus_solution.md"
    )
    ```
 
@@ -203,22 +254,23 @@ One of the most powerful patterns with delegate is orchestrating multiple AI mod
 
 ```bash
 # Round 1: Initial solutions
-delegate_invoke(model: "gemini-2.5-flash", prompt: "Solve truncation detection...")
-delegate_read(output_id, options: {write_to: "gemini_solution.md"})
+delegate_submit_task(model: "gemini-2.5-flash", prompt: "Solve truncation detection...")
+delegate_write_output_to_file(output_id: "gen-001", write_to: "tmp/gemini_solution.md")
 
-delegate_invoke(model: "claude-opus-4-20250514", prompt: "Solve truncation detection...")
-delegate_read(output_id, options: {write_to: "opus_solution.md"})
+delegate_submit_task(model: "claude-opus-4-20250514", prompt: "Solve truncation detection...")
+delegate_write_output_to_file(output_id: "gen-002", write_to: "tmp/opus_solution.md")
 
 # Round 2: Cross-pollination
-delegate_invoke(
+delegate_submit_task(
   model: "gemini-2.5-flash",
   prompt: "Here are both solutions. Create a unified approach...",
-  files: ["gemini_solution.md", "opus_solution.md", "invoke.go", "read.go"]
+  files: ["tmp/gemini_solution.md", "tmp/opus_solution.md", "internal/handlers/invoke.go", "internal/handlers/read.go"]
 )
-delegate_read(output_id, options: {write_to: "unified_solution.md"})
+delegate_write_output_to_file(output_id: "gen-003", write_to: "tmp/unified_solution.md")
 
 # Round 3: Final synthesis (you as the moderator)
-# Read all solutions, pick the best ideas, and implement
+# Read selected parts using delegate_get_output_content with specific options
+delegate_get_output_content(output_id: "gen-003", options: {extract: "code", block_index: 0})
 ```
 
 ### Key Success Factors
@@ -236,8 +288,9 @@ delegate_read(output_id, options: {write_to: "unified_solution.md"})
    - Know when to stop discussing and start implementing
 
 3. **Token Efficiency**
-   - Use `write_to` to save all responses without consuming tokens
-   - Only read small portions when needed for synthesis
+   - Use `delegate_write_output_to_file` to save all responses without consuming tokens
+   - Use `delegate_get_output_metadata` to understand outputs before retrieving
+   - Only retrieve small portions with `delegate_get_output_content` when needed for synthesis
    - Let each AI see the full context without you having to hold it all
 
 4. **Leverage Each Model's Strengths**

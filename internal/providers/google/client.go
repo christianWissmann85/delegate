@@ -8,23 +8,26 @@ import (
 	"time"
 
 	"github.com/christianwissmann85/delegate/internal/handlers"
+	"github.com/christianwissmann85/delegate/internal/models"
 	"github.com/christianwissmann85/delegate/internal/logger"
 	"google.golang.org/genai"
 )
 
 // Provider implements the Google (Gemini) provider
 type Provider struct {
-	apiKey string
-	model  string
-	logger *logger.Logger
+	apiKey         string
+	model          string
+	defaultTimeout int
+	logger         *logger.Logger
 }
 
 // NewProvider creates a new Google provider
-func NewProvider(apiKey, model string) *Provider {
+func NewProvider(apiKey, model string, defaultTimeout int) *Provider {
 	return &Provider{
-		apiKey: apiKey,
-		model:  model,
-		logger: logger.New("providers.google", logger.InfoLevel),
+		apiKey:         apiKey,
+		model:          model,
+		defaultTimeout: defaultTimeout,
+		logger:         logger.New("providers.google", logger.InfoLevel),
 	}
 }
 
@@ -50,16 +53,16 @@ func (t *apiKeyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // GenerateStream generates content using Google's Gemini API
-func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequest) (<-chan handlers.StreamChunk, error) {
+func (p *Provider) Generate(ctx context.Context, req *models.GenerateRequest) (<-chan models.StreamChunk, error) {
 	// Create output channel
-	ch := make(chan handlers.StreamChunk)
+	ch := make(chan models.StreamChunk)
 
 	// Start streaming in a goroutine
 	go func() {
 		defer close(ch)
 
-		// Set timeout from request or use default
-		timeout := 60 * time.Second
+		// Set timeout from request or use default from config
+		timeout := time.Duration(p.defaultTimeout) * time.Second
 		if req.Timeout > 0 {
 			timeout = time.Duration(req.Timeout) * time.Second
 		}
@@ -91,7 +94,7 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 			// Authentication is handled via x-goog-api-key header in our custom transport
 		})
 		if err != nil {
-			ch <- handlers.StreamChunk{Error: fmt.Errorf("create gemini client with custom transport: %w", err)}
+			ch <- models.StreamChunk{Error: fmt.Errorf("create gemini client with custom transport: %w", err)}
 			return
 		}
 
@@ -101,7 +104,7 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 			// Read files with memory limits
 			fileContents, err := handlers.ReadFilesWithLimit(req.Files)
 			if err != nil {
-				ch <- handlers.StreamChunk{Error: err}
+				ch <- models.StreamChunk{Error: err}
 				return
 			}
 			promptText = handlers.BuildPromptWithFiles(promptText, fileContents)
@@ -159,9 +162,9 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 				
 				// Add hint about potential ADC interference
 				if isAuthError {
-					ch <- handlers.StreamChunk{Error: fmt.Errorf("authentication error (check if ADC is overriding API key): %w", err)}
+					ch <- models.StreamChunk{Error: fmt.Errorf("authentication error (check if ADC is overriding API key): %w", err)}
 				} else {
-					ch <- handlers.StreamChunk{Error: fmt.Errorf("stream error: %w", err)}
+					ch <- models.StreamChunk{Error: fmt.Errorf("stream error: %w", err)}
 				}
 				return
 			}
@@ -171,7 +174,7 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 				if candidate.Content != nil {
 					for _, part := range candidate.Content.Parts {
 						if part != nil && part.Text != "" {
-							ch <- handlers.StreamChunk{Content: part.Text}
+							ch <- models.StreamChunk{Content: part.Text}
 						}
 					}
 				}

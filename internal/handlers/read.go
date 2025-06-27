@@ -40,10 +40,10 @@ func (h *ReadHandler) Handle(ctx context.Context, req ReadRequest) (*ReadRespons
 	}
 
 	// Get output from storage
-	output, err := h.storage.Get(req.OutputID)
+	output, err := h.storage.GetOutput(req.OutputID)
 	if err != nil {
 		return nil, models.NewDelegateError(
-			models.ErrorTypeNotFound,
+			models.ErrorTypeOutputNotFound,
 			"",
 			fmt.Sprintf("output not found: %v", err),
 		)

@@ -90,17 +90,20 @@ func (s *Server) registerTools() error {
 
 	// Initialize extractor factory
 	extractFactory := extractor.NewFactory()
+	extractFactoryAdapter := handlers.NewExtractorFactoryAdapter(extractFactory)
 
-	// Create handlers
-	invokeHandler := handlers.NewInvokeHandler(providerFactory, store, extractFactory)
-	checkHandler := handlers.NewCheckHandler(store)
-	readHandler := handlers.NewReadHandler(store)
+	// Create the new handlers for the 4-tool architecture
+	submitTaskHandler := handlers.NewSubmitTaskHandler(providerFactory, store, extractFactoryAdapter)
+	getMetadataHandler := handlers.NewGetMetadataHandler(store)
+	getContentHandler := handlers.NewGetContentHandler(store)
+	writeFileHandler := handlers.NewWriteFileHandler(store) // New handler for writing files
 
-	// Register tools
+	// Register all 4 new tools
 	tools := []Tool{
-		&InvokeTool{handler: invokeHandler},
-		&CheckTool{handler: checkHandler},
-		&ReadTool{handler: readHandler},
+		&SubmitTaskTool{handler: submitTaskHandler},
+		&GetMetadataTool{handler: getMetadataHandler},
+		&GetContentTool{handler: getContentHandler},
+		&WriteFileTool{handler: writeFileHandler}, // Register the new write file tool
 	}
 
 	for _, tool := range tools {

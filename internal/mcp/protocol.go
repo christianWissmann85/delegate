@@ -190,15 +190,20 @@ func (p *Protocol) handleToolCall(id interface{}, params json.RawMessage) error 
 	if err != nil {
 		// Convert DelegateError to JSON-RPC error with rich data
 		if delegateErr, ok := err.(*models.DelegateError); ok {
+			// Build error data from details
+			errorData := map[string]interface{}{
+				"error": string(delegateErr.Code),
+			}
+			// Copy relevant details
+			if delegateErr.Details != nil {
+				for k, v := range delegateErr.Details {
+					errorData[k] = v
+				}
+			}
 			_ = p.sendError(id, &Error{
-				Code:    p.mapErrorTypeToCode(delegateErr.Type),
+				Code:    p.mapErrorTypeToCode(string(delegateErr.Code)),
 				Message: delegateErr.Message,
-				Data: map[string]interface{}{
-					"error":              delegateErr.Type,
-					"provider":           delegateErr.Provider,
-					"retry_after":        delegateErr.RetryAfter,
-					"alternative_models": delegateErr.Alternatives,
-				},
+				Data:    errorData,
 			})
 		} else {
 			// Fallback for non-DelegateError
@@ -291,15 +296,17 @@ func (p *Protocol) wrapToolResult(toolName string, result interface{}) map[strin
 
 // mapErrorTypeToCode maps DelegateError types to JSON-RPC error codes
 func (p *Protocol) mapErrorTypeToCode(errorType string) int {
-	switch errorType {
+	switch models.ErrorType(errorType) {
 	case models.ErrorTypeInvalidRequest:
 		return InvalidParams
-	case models.ErrorTypeAuthError:
-		return InvalidRequest
-	case models.ErrorTypeNotFound:
+	case models.ErrorTypeOutputNotFound, models.ErrorTypeFileNotFound:
 		return InvalidParams
+	case models.ErrorTypeProviderError, models.ErrorTypeProviderUnavailable:
+		return InternalError
+	case models.ErrorTypeFileWriteFailed, models.ErrorTypePathTraversalAttempt:
+		return InternalError
 	default:
-		// All provider errors map to InternalError
+		// All other errors map to InternalError
 		return InternalError
 	}
 }

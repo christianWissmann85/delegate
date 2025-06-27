@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/christianwissmann85/delegate/internal/config"
-	"github.com/christianwissmann85/delegate/internal/handlers"
+	"github.com/christianwissmann85/delegate/internal/models"
 )
 
 func TestFactory_MockProvider(t *testing.T) {
@@ -24,7 +24,7 @@ func TestFactory_MockProvider(t *testing.T) {
 	}
 
 	// Test streaming
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:  "mock-test",
 		Prompt: "Write some code",
 	}

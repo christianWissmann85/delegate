@@ -15,37 +15,6 @@ type InvokeHandler struct {
 	extractorFactory ExtractorFactory
 }
 
-// Provider generates content from LLMs
-type Provider interface {
-	GenerateStream(ctx context.Context, req GenerateRequest) (<-chan StreamChunk, error)
-}
-
-// ProviderFactory creates providers based on model
-type ProviderFactory interface {
-	GetProvider(model string) (Provider, error)
-}
-
-// Storage persists outputs
-type Storage interface {
-	Save(output *models.Output) error
-	Get(id string) (*models.Output, error)
-	Delete(id string) error
-	ListOlderThan(age time.Duration) ([]string, error)
-}
-
-// Extractor extracts code and explanations
-type Extractor interface {
-	Extract(content string) (*Extraction, error)
-	ExtractCode(content string) ([]CodeBlock, error)
-	ExtractCodeOnly(content string) ([]CodeBlock, error)
-	ExtractExplanation(content string) (string, error)
-}
-
-// ExtractorFactory creates extractors with configuration
-type ExtractorFactory interface {
-	Create(languageHint string) Extractor
-	Default() Extractor
-}
 
 // NewInvokeHandler creates a new invoke handler
 func NewInvokeHandler(providers ProviderFactory, storage Storage, extractorFactory ExtractorFactory) *InvokeHandler {
@@ -72,13 +41,14 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 		}
 		return nil, models.NewDelegateError(
 			models.ErrorTypeProviderUnavailable,
-			req.Model,
-			fmt.Sprintf("get provider: %v", err),
+			fmt.Sprintf("Provider for model '%s' unavailable.", req.Model),
+			"model", req.Model,
+			"original_error", err,
 		)
 	}
 
 	// Create generate request
-	genReq := GenerateRequest{
+	genReq := &models.GenerateRequest{
 		Model:     req.Model,
 		Prompt:    req.Prompt,
 		Files:     req.Files,
@@ -87,7 +57,7 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 	}
 
 	// Stream response from provider
-	stream, err := provider.GenerateStream(ctx, genReq)
+	stream, err := provider.Generate(ctx, genReq)
 	if err != nil {
 		// Provider should return DelegateError
 		if delegateErr, ok := err.(*models.DelegateError); ok {
@@ -95,8 +65,9 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 		}
 		return nil, models.NewDelegateError(
 			models.ErrorTypeProviderError,
-			req.Model,
-			fmt.Sprintf("start stream: %v", err),
+			fmt.Sprintf("Failed to start stream for model '%s'.", req.Model),
+			"model", req.Model,
+			"original_error", err,
 		)
 	}
 
@@ -110,8 +81,9 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 			}
 			return nil, models.NewDelegateError(
 				models.ErrorTypeProviderError,
-				req.Model,
-				fmt.Sprintf("stream error: %v", chunk.Error),
+				fmt.Sprintf("Stream error for model '%s'.", req.Model),
+				"model", req.Model,
+				"original_error", chunk.Error,
 			)
 		}
 		fullResponse += chunk.Content
@@ -126,40 +98,24 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 			truncationResult.IsTruncated, truncationResult.Confidence, truncationResult.Reason)
 	}
 
-	// Create extractor with language hint if provided
-	extractor := h.extractorFactory.Create(req.LanguageHint)
+	// Create extractor
+	extractor := h.extractorFactory.Default()
 
 	// Extract based on mode
-	var extraction *Extraction
-	if req.CodeOnly {
-		// Extract only code blocks
-		codeBlocks, err := extractor.ExtractCodeOnly(fullResponse)
-		if err != nil {
-			// If extraction fails, still save the raw response
-			extraction = &Extraction{
-				Explanation: fullResponse,
-			}
-		} else {
-			extraction = &Extraction{
-				Code:        codeBlocks,
-				Explanation: "", // No explanation in code_only mode
-			}
-		}
-	} else {
-		// Extract both code and explanation
-		extraction, err = extractor.Extract(fullResponse)
-		if err != nil {
-			// If extraction fails, still save the raw response
-			extraction = &Extraction{
-				Explanation: fullResponse,
-			}
+	extraction, err := extractor.Extract(fullResponse, req.CodeOnly)
+	if err != nil {
+		// If extraction fails, still save the raw response
+		extraction = models.Extraction{
+			Explanation: fullResponse,
 		}
 	}
 
 	// Create output object
 	output := &models.Output{
+		ID:        "", // Will be set by storage
 		Model:     req.Model,
 		Prompt:    req.Prompt,
+		Files:     req.Files,
 		CreatedAt: time.Now().UTC(),
 		Response: models.Response{
 			Raw: fullResponse,
@@ -180,8 +136,10 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 	// Convert code blocks
 	for _, block := range extraction.Code {
 		output.Response.Extracted.Code = append(output.Response.Extracted.Code, models.ExtractedCode{
-			Language: block.Language,
-			Content:  block.Content,
+			Language:  block.Language,
+			Content:   block.Content,
+			LineStart: block.LineStart,
+			LineEnd:   block.LineEnd,
 		})
 	}
 
@@ -191,11 +149,11 @@ func (h *InvokeHandler) Handle(ctx context.Context, req InvokeRequest) (*InvokeR
 	}
 
 	// Save to storage
-	if err := h.storage.Save(output); err != nil {
+	if err := h.storage.SaveOutput(output); err != nil {
 		return nil, models.NewDelegateError(
-			models.ErrorTypeProviderError,
-			"",
-			fmt.Sprintf("save output: %v", err),
+			models.ErrorTypeInternal,
+			fmt.Sprintf("Failed to save output."),
+			"original_error", err,
 		)
 	}
 
@@ -261,31 +219,3 @@ type InvokeResponse struct {
 	Warning  string `json:"warning,omitempty"`
 }
 
-// GenerateRequest is sent to providers
-type GenerateRequest struct {
-	Model     string
-	Prompt    string
-	Files     []string
-	MaxTokens int
-	Timeout   int // Timeout in seconds
-}
-
-// StreamChunk represents a chunk of generated content
-type StreamChunk struct {
-	Content string
-	Error   error
-}
-
-// Extraction contains extracted code and explanation
-type Extraction struct {
-	Code        []CodeBlock
-	Explanation string
-}
-
-// CodeBlock represents an extracted code block
-type CodeBlock struct {
-	Language  string
-	Content   string
-	LineStart int
-	LineEnd   int
-}

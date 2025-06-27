@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/christianwissmann85/delegate/internal/handlers"
+	"github.com/christianwissmann85/delegate/internal/models"
 )
 
 func TestProvider_GenerateStream(t *testing.T) {
@@ -22,7 +22,7 @@ func TestProvider_GenerateStream(t *testing.T) {
 	provider := NewProvider(apiKey, "gemini-2.0-flash")
 
 	ctx := context.Background()
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:     "gemini-2.0-flash",
 		Prompt:    "Write a simple hello world function in Python. Keep it very short.",
 		MaxTokens: 100,
@@ -81,7 +81,7 @@ func TestProvider_Timeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:   "gemini-2.0-flash",
 		Prompt:  "This should timeout immediately",
 		Timeout: 1, // 1 second
@@ -111,7 +111,7 @@ func TestProvider_InvalidModel(t *testing.T) {
 	provider := NewProvider("fake-api-key", "invalid-model")
 
 	ctx := context.Background()
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:  "invalid-model",
 		Prompt: "Test",
 	}

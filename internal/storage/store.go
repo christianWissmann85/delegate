@@ -84,6 +84,11 @@ func (s *FileStore) Save(output *models.Output) error {
 	return nil
 }
 
+// SaveOutput is an alias for Save to match the handler interface
+func (s *FileStore) SaveOutput(output *models.Output) error {
+	return s.Save(output)
+}
+
 // Get retrieves an output by ID
 func (s *FileStore) Get(id string) (*models.Output, error) {
 	// Sanitize ID to prevent path traversal
@@ -106,6 +111,11 @@ func (s *FileStore) Get(id string) (*models.Output, error) {
 	}
 
 	return &output, nil
+}
+
+// GetOutput is an alias for Get to match the handler interface
+func (s *FileStore) GetOutput(id string) (*models.Output, error) {
+	return s.Get(id)
 }
 
 // Delete removes an output

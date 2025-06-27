@@ -40,9 +40,23 @@ func ReadFilesWithLimit(filePaths []string) ([]FileContent, error) {
 	for _, path := range filePaths {
 		// Clean the path
 		cleanPath := filepath.Clean(path)
+		
+		// Convert relative path to absolute for file operations
+		absPath := cleanPath
+		if !filepath.IsAbs(cleanPath) {
+			cwd, err := os.Getwd()
+			if err != nil {
+				return nil, models.NewDelegateError(
+					models.ErrorTypeInvalidRequest,
+					"Failed to get working directory",
+					"error", err.Error(),
+				)
+			}
+			absPath = filepath.Join(cwd, cleanPath)
+		}
 
 		// Open file with size limit
-		content, size, err := readFileWithLimit(cleanPath, MaxFileSize)
+		content, size, err := readFileWithLimit(absPath, MaxFileSize)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +72,7 @@ func ReadFilesWithLimit(filePaths []string) ([]FileContent, error) {
 		}
 
 		files = append(files, FileContent{
-			Path:    cleanPath,
+			Path:    path, // Store original relative path
 			Content: content,
 		})
 	}
@@ -71,7 +85,7 @@ func readFileWithLimit(path string, maxSize int64) (string, int64, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", 0, models.NewDelegateError(
-			models.ErrorTypeNotFound,
+			models.ErrorTypeFileNotFound,
 			"",
 			fmt.Sprintf("cannot open file: %s", path),
 		)

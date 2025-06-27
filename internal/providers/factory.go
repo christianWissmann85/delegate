@@ -35,10 +35,10 @@ func (f *Factory) GetProvider(model string) (handlers.Provider, error) {
 	} else {
 		switch model {
 		case "gemini-2.5-flash", "gemini-2.5-pro":
-			provider = google.NewProvider(f.config.GoogleKey, model)
+			provider = google.NewProvider(f.config.GoogleKey, model, f.config.TimeoutSeconds)
 			providerName = "google"
 		case "claude-sonnet-4-20250514", "claude-opus-4-20250514":
-			provider = anthropic.NewProvider(f.config.AnthropicKey, model)
+			provider = anthropic.NewProvider(f.config.AnthropicKey, model, f.config.TimeoutSeconds)
 			providerName = "anthropic"
 		default:
 			return nil, fmt.Errorf("unsupported model: %s", model)
@@ -47,4 +47,14 @@ func (f *Factory) GetProvider(model string) (handlers.Provider, error) {
 
 	// Wrap all providers with retry logic
 	return NewRetryableProvider(provider, providerName), nil
+}
+
+// SupportedModels returns the list of supported models
+func (f *Factory) SupportedModels() []string {
+	return []string{
+		"gemini-2.5-flash",
+		"gemini-2.5-pro",
+		"claude-sonnet-4-20250514",
+		"claude-opus-4-20250514",
+	}
 }

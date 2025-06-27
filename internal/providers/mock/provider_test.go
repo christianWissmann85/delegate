@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/christianwissmann85/delegate/internal/handlers"
+	"github.com/christianwissmann85/delegate/internal/models"
 )
 
 func TestMockProvider_DefaultResponse(t *testing.T) {
 	provider := NewProvider("test-model")
 
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:  "test-model",
 		Prompt: "Hello, world!",
 	}
@@ -42,7 +42,7 @@ func TestMockProvider_DefaultResponse(t *testing.T) {
 func TestMockProvider_CodeResponse(t *testing.T) {
 	provider := NewProvider("test-model")
 
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:  "test-model",
 		Prompt: "Write some code for me",
 	}
@@ -73,7 +73,7 @@ func TestMockProvider_CustomResponses(t *testing.T) {
 	provider := NewProvider("test-model").
 		WithResponses("First chunk", " Second chunk", " Third chunk")
 
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:  "test-model",
 		Prompt: "Test",
 	}
@@ -108,7 +108,7 @@ func TestMockProvider_WithError(t *testing.T) {
 		WithResponses("Chunk 1", "Chunk 2", "Chunk 3").
 		WithError(2) // Error on second chunk
 
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:  "test-model",
 		Prompt: "Test",
 	}
@@ -144,7 +144,7 @@ func TestMockProvider_ContextCancellation(t *testing.T) {
 		WithResponses("Chunk 1", "Chunk 2", "Chunk 3").
 		WithDelay(50 * time.Millisecond)
 
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:  "test-model",
 		Prompt: "Test",
 	}
@@ -181,7 +181,7 @@ func TestMockProvider_ContextCancellation(t *testing.T) {
 func TestMockProvider_ModelMismatch(t *testing.T) {
 	provider := NewProvider("test-model")
 
-	req := handlers.GenerateRequest{
+	req := models.GenerateRequest{
 		Model:  "wrong-model",
 		Prompt: "Test",
 	}

@@ -3,20 +3,16 @@ package handlers
 import (
 	"strings"
 	"unicode"
+	
+	"github.com/christianwissmann85/delegate/internal/models"
 )
 
-// TruncationResult holds the outcome of truncation detection
-type TruncationResult struct {
-	IsTruncated bool
-	Confidence  float64
-	Reason      string
-}
 
 // DetectTruncation analyzes content for signs of truncation
 // This is the 80/20 solution - catches most cases with minimal complexity
-func DetectTruncation(content string) TruncationResult {
+func DetectTruncation(content string) models.TruncationResult {
 	if len(content) == 0 {
-		return TruncationResult{IsTruncated: false, Confidence: 0.0}
+		return models.TruncationResult{IsTruncated: false, Confidence: 0.0}
 	}
 
 	// Only examine the last 500 characters for efficiency
@@ -29,7 +25,7 @@ func DetectTruncation(content string) TruncationResult {
 	// Trim whitespace for analysis
 	trimmed := strings.TrimSpace(tail)
 	if trimmed == "" {
-		return TruncationResult{IsTruncated: false, Confidence: 0.0}
+		return models.TruncationResult{IsTruncated: false, Confidence: 0.0}
 	}
 
 	// 1. Check for complete endings (high confidence not truncated)
@@ -51,13 +47,13 @@ func DetectTruncation(content string) TruncationResult {
 		   !strings.HasSuffix(beforeFence, "}") && !strings.HasSuffix(beforeFence, "]") {
 			// Don't return early - let the rest of the detection run
 		} else {
-			return TruncationResult{IsTruncated: false, Confidence: 0.9}
+			return models.TruncationResult{IsTruncated: false, Confidence: 0.9}
 		}
 	}
 	
 	for _, ending := range completeEndings {
 		if strings.HasSuffix(trimmed, ending) {
-			return TruncationResult{IsTruncated: false, Confidence: 0.9}
+			return models.TruncationResult{IsTruncated: false, Confidence: 0.9}
 		}
 	}
 
@@ -80,7 +76,7 @@ func DetectTruncation(content string) TruncationResult {
 
 	for _, pattern := range truncationPatterns {
 		if strings.HasSuffix(trimmed, pattern.suffix) {
-			return TruncationResult{
+			return models.TruncationResult{
 				IsTruncated: true,
 				Confidence:  pattern.confidence,
 				Reason:      pattern.reason,
@@ -137,7 +133,7 @@ func DetectTruncation(content string) TruncationResult {
 
 	// Check for unclosed structures
 	if openBraces > 0 || openBrackets > 0 || openParens > 0 {
-		return TruncationResult{
+		return models.TruncationResult{
 			IsTruncated: true,
 			Confidence:  0.85,
 			Reason:      "unclosed brackets/braces",
@@ -145,7 +141,7 @@ func DetectTruncation(content string) TruncationResult {
 	}
 
 	if quotes%2 != 0 {
-		return TruncationResult{
+		return models.TruncationResult{
 			IsTruncated: true,
 			Confidence:  0.9,
 			Reason:      "unclosed quote",
@@ -153,7 +149,7 @@ func DetectTruncation(content string) TruncationResult {
 	}
 
 	if backticks%3 == 1 || backticks%3 == 2 {
-		return TruncationResult{
+		return models.TruncationResult{
 			IsTruncated: true,
 			Confidence:  0.8,
 			Reason:      "incomplete code fence",
@@ -168,11 +164,11 @@ func DetectTruncation(content string) TruncationResult {
 		lowerTail := strings.ToLower(trimmed)
 		for _, ending := range wordEndings {
 			if strings.HasSuffix(lowerTail, ending) {
-				return TruncationResult{IsTruncated: false, Confidence: 0.6}
+				return models.TruncationResult{IsTruncated: false, Confidence: 0.6}
 			}
 		}
 		// If no common ending, likely truncated
-		return TruncationResult{
+		return models.TruncationResult{
 			IsTruncated: true,
 			Confidence:  0.75,
 			Reason:      "ends mid-word",
@@ -184,7 +180,7 @@ func DetectTruncation(content string) TruncationResult {
 	suspiciousSizes := []int{4096, 8192, 16384, 32768, 65536}
 	for _, size := range suspiciousSizes {
 		if contentSize >= size-50 && contentSize <= size {
-			return TruncationResult{
+			return models.TruncationResult{
 				IsTruncated: true,
 				Confidence:  0.6,
 				Reason:      "suspicious size boundary",
@@ -193,5 +189,5 @@ func DetectTruncation(content string) TruncationResult {
 	}
 
 	// Default: probably not truncated
-	return TruncationResult{IsTruncated: false, Confidence: 0.7}
+	return models.TruncationResult{IsTruncated: false, Confidence: 0.7}
 }

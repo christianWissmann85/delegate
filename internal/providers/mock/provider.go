@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/christianwissmann85/delegate/internal/handlers"
+	"github.com/christianwissmann85/delegate/internal/models"
 )
 
 // Provider implements a mock provider for testing
@@ -44,13 +44,13 @@ func (p *Provider) WithError(chunkNumber int) *Provider {
 }
 
 // GenerateStream generates mock content
-func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequest) (<-chan handlers.StreamChunk, error) {
+func (p *Provider) Generate(ctx context.Context, req *models.GenerateRequest) (<-chan models.StreamChunk, error) {
 	// Validate model matches
 	if req.Model != p.model {
 		return nil, fmt.Errorf("model mismatch: expected %s, got %s", p.model, req.Model)
 	}
 
-	ch := make(chan handlers.StreamChunk)
+	ch := make(chan models.StreamChunk)
 
 	go func() {
 		defer close(ch)
@@ -82,15 +82,15 @@ func (p *Provider) GenerateStream(ctx context.Context, req handlers.GenerateRequ
 		for i, chunk := range responses {
 			select {
 			case <-ctx.Done():
-				ch <- handlers.StreamChunk{Error: ctx.Err()}
+				ch <- models.StreamChunk{Error: ctx.Err()}
 				return
 			case <-time.After(p.delay):
 				// Simulate error if configured
 				if p.errorOnChunk > 0 && i+1 == p.errorOnChunk {
-					ch <- handlers.StreamChunk{Error: fmt.Errorf("mock error on chunk %d", i+1)}
+					ch <- models.StreamChunk{Error: fmt.Errorf("mock error on chunk %d", i+1)}
 					return
 				}
-				ch <- handlers.StreamChunk{Content: chunk}
+				ch <- models.StreamChunk{Content: chunk}
 			}
 		}
 	}()

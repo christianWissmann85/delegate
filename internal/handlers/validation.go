@@ -91,32 +91,47 @@ func validateSingleFilePath(path string) error {
 		)
 	}
 
-	// Must be absolute path
-	if !filepath.IsAbs(path) {
+	// Must be relative path (changed from absolute)
+	if filepath.IsAbs(path) {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
-			"",
-			fmt.Sprintf("file path must be absolute: %s", path),
+			"Path must be relative, not absolute",
+			"path", path,
+			"hint", "Use relative paths like 'src/main.go' instead of '/home/user/project/src/main.go'",
 		)
 	}
 
 	// Clean the path to resolve any .. or . elements
 	cleanPath := filepath.Clean(path)
+	
+	// Convert relative path to absolute for file system checks
+	absPath := cleanPath
+	if !filepath.IsAbs(cleanPath) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return models.NewDelegateError(
+				models.ErrorTypeInvalidRequest,
+				"Failed to get working directory",
+				"error", err.Error(),
+			)
+		}
+		absPath = filepath.Join(cwd, cleanPath)
+	}
 
 	// Check file exists and is readable
-	info, err := os.Stat(cleanPath)
+	info, err := os.Stat(absPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return models.NewDelegateError(
-				models.ErrorTypeNotFound,
+				models.ErrorTypeFileNotFound,
 				"",
-				fmt.Sprintf("file not found: %s", cleanPath),
+				fmt.Sprintf("file not found: %s", path),
 			)
 		}
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
 			"",
-			fmt.Sprintf("cannot access file: %s", cleanPath),
+			fmt.Sprintf("cannot access file: %s", path),
 		)
 	}
 
@@ -125,7 +140,7 @@ func validateSingleFilePath(path string) error {
 		return models.NewDelegateError(
 			models.ErrorTypeInvalidRequest,
 			"",
-			fmt.Sprintf("not a regular file: %s", cleanPath),
+			fmt.Sprintf("not a regular file: %s", path),
 		)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	// Import the new handler structs from the handlers package
 	"github.com/christianwissmann85/delegate/internal/handlers"
 )
 
@@ -32,143 +33,135 @@ type Property struct {
 	Properties  map[string]Property `json:"properties,omitempty"`
 }
 
-// InvokeTool wraps the invoke handler as an MCP tool
-type InvokeTool struct {
-	handler *handlers.InvokeHandler
+// SubmitTaskTool wraps the submit task handler as an MCP tool
+type SubmitTaskTool struct {
+	handler *handlers.SubmitTaskHandler // Renamed from InvokeHandler
 }
 
-func (t *InvokeTool) Name() string {
-	return "delegate_invoke"
+func (t *SubmitTaskTool) Name() string {
+	return "delegate_submit_task"
 }
 
-func (t *InvokeTool) Description() string {
-	return "STEP 1: Delegate file generation to save tokens. Does NOT write files directly - stores in temp storage. Returns output_id for use with delegate_check then delegate_read(write_to). IMPORTANT: Use ABSOLUTE paths in 'files' parameter. Each file must be <1MB, but total can exceed."
+func (t *SubmitTaskTool) Description() string {
+	return "STEP 1: Submits a generation task to an external LLM (~50-100 tokens). This is an asynchronous operation that creates a temporary output artifact and returns a unique `output_id`. The content is NOT returned directly. Use other `delegate_*` tools to access the output."
 }
 
-func (t *InvokeTool) Schema() JSONSchema {
+func (t *SubmitTaskTool) Schema() JSONSchema {
 	return JSONSchema{
 		Type: "object",
 		Properties: map[string]Property{
 			"model": {
 				Type:        "string",
-				Description: "The LLM model to use",
+				Description: "The LLM model to use.",
 				Enum:        handlers.ValidModels,
 			},
 			"prompt": {
 				Type:        "string",
-				Description: "Task for ONE file. Good: 'Create user model with GORM tags'. Bad: 'Create entire REST API' (too many files).",
+				Description: "The task description.",
 			},
 			"files": {
 				Type:        "array",
-				Description: "ABSOLUTE file paths to include as context (not relative!). Example: '/home/user/project/model.go' not 'model.go'",
+				Description: "List of relative file paths to include as context (e.g., \"src/model.go\", \"docs/api.md\").",
 				Items: &Property{
 					Type: "string",
 				},
 			},
 			"max_tokens": {
 				Type:        "number",
-				Description: "Maximum tokens to generate (defaults to model maximum)",
-			},
-			"code_only": {
-				Type:        "boolean",
-				Description: "Extract only code blocks from response, no explanations (default: false). Tip: Also ask for 'only code' in prompt.",
-			},
-			"language_hint": {
-				Type:        "string",
-				Description: "Expected programming language(s) for better extraction",
+				Description: "Max tokens for the generation.",
 			},
 			"timeout": {
 				Type:        "number",
-				Description: "Timeout in seconds (default: 180, max: 600). Suggested: 180s minimum for code, 400s minimum for creative tasks, 400-600s for very large file(s)/bundle(s) analysis.",
+				Description: "Timeout in seconds.",
 			},
 		},
 		Required: []string{"model", "prompt"},
 	}
 }
 
-func (t *InvokeTool) Handler(ctx context.Context, params json.RawMessage) (interface{}, error) {
-	var req handlers.InvokeRequest
+func (t *SubmitTaskTool) Handler(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	var req handlers.SubmitTaskRequest // Renamed from InvokeRequest
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, fmt.Errorf("unmarshal params: %w", err)
 	}
 	return t.handler.Handle(ctx, req)
 }
 
-// CheckTool wraps the check handler as an MCP tool
-type CheckTool struct {
-	handler *handlers.CheckHandler
+// GetMetadataTool wraps the get metadata handler as an MCP tool
+type GetMetadataTool struct {
+	handler *handlers.GetMetadataHandler // Renamed from CheckHandler
 }
 
-func (t *CheckTool) Name() string {
-	return "delegate_check"
+func (t *GetMetadataTool) Name() string {
+	return "delegate_get_output_metadata"
 }
 
-func (t *CheckTool) Description() string {
-	return "STEP 2: Check delegated task status and size before retrieving. Shows token count and file size. Use this after delegate_invoke, before delegate_read. Helps avoid consuming unnecessary tokens."
+func (t *GetMetadataTool) Description() string {
+	return "STEP 2 (Optional): Retrieves structured metadata about an output artifact (~20 tokens). Use this to decide whether to retrieve content into context or write directly to a file. This tool does NOT return the content itself."
 }
 
-func (t *CheckTool) Schema() JSONSchema {
+func (t *GetMetadataTool) Schema() JSONSchema {
 	return JSONSchema{
 		Type: "object",
 		Properties: map[string]Property{
 			"output_id": {
 				Type:        "string",
-				Description: "The output ID returned from invoke",
+				Description: "The ID from `delegate_submit_task`.",
 			},
 		},
 		Required: []string{"output_id"},
 	}
 }
 
-func (t *CheckTool) Handler(ctx context.Context, params json.RawMessage) (interface{}, error) {
-	var req handlers.CheckRequest
+func (t *GetMetadataTool) Handler(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	var req handlers.GetMetadataRequest // Renamed from CheckRequest
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, fmt.Errorf("unmarshal params: %w", err)
 	}
 	return t.handler.Handle(ctx, req)
 }
 
-// ReadTool wraps the read handler as an MCP tool
-type ReadTool struct {
-	handler *handlers.ReadHandler
+// GetContentTool wraps the get content handler as an MCP tool
+type GetContentTool struct {
+	handler *handlers.GetContentHandler // Renamed from ReadHandler
 }
 
-func (t *ReadTool) Name() string {
-	return "delegate_read"
+func (t *GetContentTool) Name() string {
+	return "delegate_get_output_content"
 }
 
-func (t *ReadTool) Description() string {
-	return "STEP 3: Get delegated results. WORKFLOW: invoke -> check -> read. To save tokens: use 'write_to' with ABSOLUTE path to write file directly (no content returned). To get content: omit 'write_to'. IMPORTANT: Use extract:'code' to strip markdown fences for source files, 'all' keeps formatting."
+func (t *GetContentTool) Description() string {
+	return "Retrieves the full or partial content of an output artifact into the agent's context (~30+ tokens plus content). This operation consumes tokens proportional to the content size. Use `options` to extract specific parts (e.g., `extract: 'code'`)."
 }
 
-func (t *ReadTool) Schema() JSONSchema {
+func (t *GetContentTool) Schema() JSONSchema {
 	return JSONSchema{
 		Type: "object",
 		Properties: map[string]Property{
 			"output_id": {
 				Type:        "string",
-				Description: "The output ID returned from invoke",
+				Description: "The ID from `delegate_submit_task`.",
 			},
 			"options": {
 				Type:        "object",
-				Description: "Options for reading output",
+				Description: "Options for retrieving output content.",
 				Properties: map[string]Property{
 					"extract": {
 						Type:        "string",
-						Description: "What to extract: 'all' (keeps markdown), 'code' (strips fences for clean source), 'explanation' (docs only)",
+						Description: "What part to extract: 'all', 'code', 'explanation'.",
 						Enum:        []string{"all", "code", "explanation"},
 					},
 					"max_tokens": {
 						Type:        "number",
-						Description: "Limit response size in tokens",
-					},
-					"write_to": {
-						Type:        "string",
-						Description: "ABSOLUTE file path to write content directly to disk (saves tokens - no content returned). Example: '/home/user/project/new_file.go' not 'new_file.go'",
+						Description: "Truncate the returned content to this many tokens.",
 					},
 					"block_index": {
 						Type:        "number",
-						Description: "When multiple code blocks exist, specify which one to extract (0-based index). Use after getting block list warning.",
+						Description: "For multi-block outputs, select a specific block (0-based index).",
+					},
+					"language": {
+						Type:        "string",
+						Description: "Filter code blocks by this language.",
 					},
 				},
 			},
@@ -177,8 +170,65 @@ func (t *ReadTool) Schema() JSONSchema {
 	}
 }
 
-func (t *ReadTool) Handler(ctx context.Context, params json.RawMessage) (interface{}, error) {
-	var req handlers.ReadRequest
+func (t *GetContentTool) Handler(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	var req handlers.GetContentRequest // Renamed from ReadRequest
+	if err := json.Unmarshal(params, &req); err != nil {
+		return nil, fmt.Errorf("unmarshal params: %w", err)
+	}
+	return t.handler.Handle(ctx, req)
+}
+
+// WriteFileTool wraps the write file handler as an MCP tool
+type WriteFileTool struct {
+	handler *handlers.WriteFileHandler // New handler
+}
+
+func (t *WriteFileTool) Name() string {
+	return "delegate_write_output_to_file"
+}
+
+func (t *WriteFileTool) Description() string {
+	return "Writes the content of an output artifact directly to a specified file path (relative to working directory). This operation consumes ZERO content tokens. Use `options` to select specific parts to write (e.g., `extract: 'code'`, `block_index: 0`)."
+}
+
+func (t *WriteFileTool) Schema() JSONSchema {
+	return JSONSchema{
+		Type: "object",
+		Properties: map[string]Property{
+			"output_id": {
+				Type:        "string",
+				Description: "The ID from `delegate_submit_task`.",
+			},
+			"write_to": {
+				Type:        "string",
+				Description: "The relative file path to write to (e.g., \"src/component.jsx\", \"tmp/output.go\").",
+			},
+			"options": {
+				Type:        "object",
+				Description: "Options for writing output content to a file.",
+				Properties: map[string]Property{
+					"extract": {
+						Type:        "string",
+						Description: "What part to extract: 'all', 'code', 'explanation'.",
+						Enum:        []string{"all", "code", "explanation"},
+					},
+					"block_index": {
+						Type:        "number",
+						Description: "For multi-block outputs, select a specific block (0-based index).",
+					},
+					"language": {
+						Type:        "string",
+						Description: "Filter code blocks by this language.",
+					},
+				},
+			},
+		},
+		Required: []string{"output_id", "write_to"},
+	}
+}
+
+func (t *WriteFileTool) Handler(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	var req handlers.WriteFileRequest // New request type
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, fmt.Errorf("unmarshal params: %w", err)
 	}

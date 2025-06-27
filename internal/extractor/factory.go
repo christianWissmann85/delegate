@@ -1,7 +1,5 @@
 package extractor
 
-import "github.com/christianwissmann85/delegate/internal/handlers"
-
 // Factory creates extractors with optional configuration
 type Factory struct{}
 
@@ -11,7 +9,7 @@ func NewFactory() *Factory {
 }
 
 // Create creates an extractor with the given options
-func (f *Factory) Create(languageHint string) handlers.Extractor {
+func (f *Factory) Create(languageHint string) *Extractor {
 	if languageHint != "" {
 		return NewWithHint(languageHint)
 	}
@@ -19,6 +17,6 @@ func (f *Factory) Create(languageHint string) handlers.Extractor {
 }
 
 // Default creates a default extractor with no hints
-func (f *Factory) Default() handlers.Extractor {
+func (f *Factory) Default() *Extractor {
 	return New()
 }

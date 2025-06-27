@@ -45,9 +45,9 @@ func NewRetryableProvider(provider handlers.Provider, name string) *RetryablePro
 	}
 }
 
-// GenerateStream implements handlers.Provider with retry logic
-func (r *RetryableProvider) GenerateStream(ctx context.Context, req handlers.GenerateRequest) (<-chan handlers.StreamChunk, error) {
-	ch := make(chan handlers.StreamChunk)
+// Generate implements handlers.Provider with retry logic
+func (r *RetryableProvider) Generate(ctx context.Context, req *models.GenerateRequest) (<-chan models.StreamChunk, error) {
+	ch := make(chan models.StreamChunk)
 
 	go func() {
 		defer close(ch)
@@ -65,7 +65,7 @@ func (r *RetryableProvider) GenerateStream(ctx context.Context, req handlers.Gen
 			attemptCtx, cancel := context.WithCancel(ctx)
 
 			// Try to generate
-			stream, err := r.provider.GenerateStream(attemptCtx, req)
+			stream, err := r.provider.Generate(attemptCtx, req)
 			if err != nil {
 				cancel()
 				// Initial error before streaming starts
@@ -99,7 +99,7 @@ func (r *RetryableProvider) GenerateStream(ctx context.Context, req handlers.Gen
 
 		// All attempts failed
 		if lastErr != nil {
-			ch <- handlers.StreamChunk{
+			ch <- models.StreamChunk{
 				Error: fmt.Errorf("all retry attempts failed: %w", lastErr),
 			}
 		}
@@ -109,7 +109,7 @@ func (r *RetryableProvider) GenerateStream(ctx context.Context, req handlers.Gen
 }
 
 // handleRetry decides whether to retry and calculates delay
-func (r *RetryableProvider) handleRetry(ch chan<- handlers.StreamChunk, err *models.DelegateError, attempt int) {
+func (r *RetryableProvider) handleRetry(ch chan<- models.StreamChunk, err *models.DelegateError, attempt int) {
 	if attempt >= r.config.MaxAttempts {
 		// No more retries
 		return
@@ -117,17 +117,21 @@ func (r *RetryableProvider) handleRetry(ch chan<- handlers.StreamChunk, err *mod
 
 	if !IsRetryable(err) {
 		// Error is not retryable
-		ch <- handlers.StreamChunk{Error: err}
+		ch <- models.StreamChunk{Error: err}
 		return
 	}
 
 	// Calculate backoff delay
-	delay := r.calculateBackoff(attempt, err.RetryAfter)
+	retryAfter := 0
+	if val, ok := err.Details["retry_after"].(int); ok {
+		retryAfter = val
+	}
+	delay := r.calculateBackoff(attempt, retryAfter)
 
 	r.logger.Info("Retrying after error", map[string]interface{}{
 		"provider":    r.name,
 		"attempt":     attempt,
-		"error_type":  err.Type,
+		"error_type":  err.Code,
 		"retry_after": delay.Seconds(),
 	})
 

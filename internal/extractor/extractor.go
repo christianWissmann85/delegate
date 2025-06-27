@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/christianwissmann85/delegate/internal/handlers"
+	"github.com/christianwissmann85/delegate/internal/models"
 )
 
 // Extractor extracts code and explanations from LLM responses
@@ -30,11 +30,11 @@ func NewWithHint(languageHint string) *Extractor {
 }
 
 // Extract extracts both code and explanation
-func (e *Extractor) Extract(content string) (*handlers.Extraction, error) {
+func (e *Extractor) Extract(content string, codeOnly bool) (*models.Extraction, error) {
 	// Handle edge case: empty content
 	if strings.TrimSpace(content) == "" {
-		return &handlers.Extraction{
-			Code:        []handlers.CodeBlock{},
+		return &models.Extraction{
+			Code:        []models.CodeBlock{},
 			Explanation: "",
 		}, nil
 	}
@@ -49,25 +49,25 @@ func (e *Extractor) Extract(content string) (*handlers.Extraction, error) {
 		return nil, fmt.Errorf("extract explanation: %w", err)
 	}
 
-	return &handlers.Extraction{
+	return &models.Extraction{
 		Code:        code,
 		Explanation: explanation,
 	}, nil
 }
 
 // ExtractCodeOnly extracts only code blocks, ignoring explanations
-func (e *Extractor) ExtractCodeOnly(content string) ([]handlers.CodeBlock, error) {
+func (e *Extractor) ExtractCodeOnly(content string) ([]models.CodeBlock, error) {
 	// Handle edge case: empty content
 	if strings.TrimSpace(content) == "" {
-		return []handlers.CodeBlock{}, nil
+		return []models.CodeBlock{}, nil
 	}
 
 	return e.ExtractCode(content)
 }
 
 // ExtractCode extracts all code blocks
-func (e *Extractor) ExtractCode(content string) ([]handlers.CodeBlock, error) {
-	var blocks []handlers.CodeBlock
+func (e *Extractor) ExtractCode(content string) ([]models.CodeBlock, error) {
+	var blocks []models.CodeBlock
 	usedRanges := make(map[string]bool)
 
 	// Process patterns in priority order
@@ -89,8 +89,8 @@ func (e *Extractor) ExtractCode(content string) ([]handlers.CodeBlock, error) {
 }
 
 // extractFencedBlocks extracts fenced code blocks (``` or ~~~)
-func (e *Extractor) extractFencedBlocks(content string, pattern Pattern, usedRanges map[string]bool) []handlers.CodeBlock {
-	var blocks []handlers.CodeBlock
+func (e *Extractor) extractFencedBlocks(content string, pattern Pattern, usedRanges map[string]bool) []models.CodeBlock {
+	var blocks []models.CodeBlock
 
 	matches := pattern.Regex.FindAllStringSubmatch(content, -1)
 	indices := pattern.Regex.FindAllStringIndex(content, -1)
@@ -124,7 +124,7 @@ func (e *Extractor) extractFencedBlocks(content string, pattern Pattern, usedRan
 		linesBefore := countLines(content[:start])
 		linesInBlock := countLines(code)
 
-		blocks = append(blocks, handlers.CodeBlock{
+		blocks = append(blocks, models.CodeBlock{
 			Language:  lang,
 			Content:   code,
 			LineStart: linesBefore + 1,
@@ -136,8 +136,8 @@ func (e *Extractor) extractFencedBlocks(content string, pattern Pattern, usedRan
 }
 
 // extractHTMLBlocks extracts HTML <code> blocks
-func (e *Extractor) extractHTMLBlocks(content string, pattern Pattern, usedRanges map[string]bool) []handlers.CodeBlock {
-	var blocks []handlers.CodeBlock
+func (e *Extractor) extractHTMLBlocks(content string, pattern Pattern, usedRanges map[string]bool) []models.CodeBlock {
+	var blocks []models.CodeBlock
 
 	matches := pattern.Regex.FindAllStringSubmatch(content, -1)
 	indices := pattern.Regex.FindAllStringIndex(content, -1)
@@ -172,7 +172,7 @@ func (e *Extractor) extractHTMLBlocks(content string, pattern Pattern, usedRange
 		linesBefore := countLines(content[:start])
 		linesInBlock := countLines(code)
 
-		blocks = append(blocks, handlers.CodeBlock{
+		blocks = append(blocks, models.CodeBlock{
 			Language:  lang,
 			Content:   code,
 			LineStart: linesBefore + 1,
@@ -184,8 +184,8 @@ func (e *Extractor) extractHTMLBlocks(content string, pattern Pattern, usedRange
 }
 
 // extractIndentedBlocks extracts indented code blocks
-func (e *Extractor) extractIndentedBlocks(content string, pattern Pattern, usedRanges map[string]bool) []handlers.CodeBlock {
-	var blocks []handlers.CodeBlock
+func (e *Extractor) extractIndentedBlocks(content string, pattern Pattern, usedRanges map[string]bool) []models.CodeBlock {
+	var blocks []models.CodeBlock
 
 	matches := pattern.Regex.FindAllString(content, -1)
 	indices := pattern.Regex.FindAllStringIndex(content, -1)
@@ -217,7 +217,7 @@ func (e *Extractor) extractIndentedBlocks(content string, pattern Pattern, usedR
 			lang = e.detectLanguage(code)
 		}
 
-		blocks = append(blocks, handlers.CodeBlock{
+		blocks = append(blocks, models.CodeBlock{
 			Language:  lang,
 			Content:   code,
 			LineStart: linesBefore + 1,

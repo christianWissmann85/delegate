@@ -33,3 +33,6 @@ Thumbs.db
 *.cover
 coverage.html
 coverage.out
+
+# Temp
+tmp/
